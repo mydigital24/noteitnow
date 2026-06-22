@@ -1174,7 +1174,7 @@ function extractHashtags(text) {
 function allTags() {
   const set = new Set();
   state.notes.forEach(n => (n.tags||[]).forEach(t => set.add(t)));
-  if (state.notes.some(n => n.pinned)) set.add('angepinnt');
+  if (state.notes.some(n => n.pinned)) set.add('#Angepinnt');
   return [...set].sort();
 }
 
