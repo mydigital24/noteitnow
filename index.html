@@ -8,7 +8,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
-<title>Notizzettel</title>
+<title>noteitnow</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -183,6 +183,12 @@
   }
   .tag-chip:hover { background: rgba(255,255,255,0.08); color: var(--text); }
   .tag-chip.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: var(--accent); }
+
+  .greeting {
+    display: none; padding: 14px 24px 4px;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .greeting strong { color: var(--text); font-weight: 600; }
 
   .content { flex: 1; overflow-y: auto; padding: 24px; }
   .content::-webkit-scrollbar { width: 6px; }
@@ -560,15 +566,15 @@
   .dock-container {
     position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; justify-content: center;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 8px));
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
     padding-left: 16px; padding-right: 16px;
     z-index: 9999; pointer-events: none;
   }
   .dock {
     pointer-events: auto;
-    display: flex; align-items: flex-end; gap: 6px;
+    display: flex; align-items: center; gap: 8px;
     padding: 6px 14px; height: 60px; box-sizing: border-box;
-    border-radius: 26px;
+    border-radius: 26px 26px 34px 34px;
     background: var(--glass-bg);
     backdrop-filter: blur(20px) saturate(190%);
     -webkit-backdrop-filter: blur(20px) saturate(190%);
@@ -653,8 +659,11 @@
     .topbar .menu-btn { display: none; }
     .topbar .more-btn { display: flex; align-items: center; justify-content: center; background: none; border: none; color: var(--text); cursor: pointer; padding: 6px; border-radius: 10px; flex-shrink:0; }
     .topbar .more-btn:active { background: rgba(255,255,255,0.1); }
+    .topbar-actions #newNoteBtn { display: none; }
+    .topbar-actions .size-toggle { display: none; }
     .topbar h1 { font-size: 18px; }
     .topbar-actions .btn { padding: 6px 10px; font-size: 12px; }
+    .greeting { display: block; }
     .dock-container { display: flex; }
     .content { padding: 10px; padding-bottom: 24px; }
     .notes-grid { columns: 2 140px; gap: 8px; }
@@ -711,7 +720,7 @@
 <body>
 
 <aside class="sidebar">
-  <div class="sidebar-logo">📝 Notizzettel <span>v1</span></div>
+  <div class="sidebar-logo">📝 noteitnow <span>v1</span></div>
   <div class="sidebar-search">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -960,6 +969,22 @@
       </button>
     </div>
     <div class="more-body">
+      <div class="more-item" onclick="setSizeMobile('compact')">
+        <span style="font-size:13px;font-weight:600;width:16px;text-align:center;">S</span>
+        <span style="flex:1;">Kompakt</span>
+        <span class="size-indicator" id="sizeIndCompact" style="font-size:10px;color:var(--text-muted);">○</span>
+      </div>
+      <div class="more-item" onclick="setSizeMobile('default')">
+        <span style="font-size:15px;font-weight:600;width:16px;text-align:center;">M</span>
+        <span style="flex:1;">Normal</span>
+        <span class="size-indicator" id="sizeIndDefault" style="font-size:10px;color:var(--accent);">●</span>
+      </div>
+      <div class="more-item" onclick="setSizeMobile('spacious')">
+        <span style="font-size:18px;font-weight:600;width:16px;text-align:center;">L</span>
+        <span style="flex:1;">Groß</span>
+        <span class="size-indicator" id="sizeIndSpacious" style="font-size:10px;color:var(--text-muted);">○</span>
+      </div>
+      <div class="more-section" style="margin-top:4px;">Allgemein</div>
       <div class="more-item" onclick="openSettings();closeMoreMenu()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Einstellungen
@@ -2088,6 +2113,17 @@ function updateSizeBtns() {
   document.querySelectorAll('.size-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.size===state.cardSize);
   });
+  ['compact','default','spacious'].forEach(s => {
+    const ind = document.getElementById('sizeInd' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (ind) ind.style.color = s === state.cardSize ? 'var(--accent)' : 'var(--text-muted)';
+  });
+}
+
+function setSizeMobile(size) {
+  state.cardSize = size;
+  save();
+  render();
+  closeMoreMenu();
 }
 
 // ─── HOME VIEW ────────────────────────────────────────────────────────────────
@@ -2394,8 +2430,8 @@ document.getElementById('settingsOverlay').addEventListener('click', e => {
   if (e.target===document.getElementById('settingsOverlay')) closeSettings();
 });
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
-(async function init() {
+// ─── START ────────────────────────────────────────────────────────────────────
+async function startApp() {
   buildColorOptions();
   load();
   applyTheme();
@@ -2410,7 +2446,9 @@ document.getElementById('settingsOverlay').addEventListener('click', e => {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('/sw.js'); } catch(e) {}
   }
-})();
+}
+
+startApp();
 </script>
 </body>
 </html>
