@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Notizzettel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --sidebar-w: 240px;
+    --accent: #e8935a;
+    --accent2: #7eb8a4;
+  }
+  [data-theme="dark"] {
+    --bg: #1a1410;
+    --surface: #221c16;
+    --text: #f0e8df;
+    --text-muted: #8a7a6e;
+    --border: #332a22;
+    --danger: #c0514a;
+    --shadow: 0 4px 16px rgba(0,0,0,0.5);
+    --glass-bg: rgba(28,28,30,0.75);
+    --glass-border: rgba(255,255,255,0.1);
+    --icon-inactive: rgba(255,255,255,0.4);
+  }
+  [data-theme="light"] {
+    --bg: #f8f5f0;
+    --surface: #ffffff;
+    --text: #1a1410;
+    --text-muted: #999080;
+    --border: #dcd5cc;
+    --danger: #c0514a;
+    --shadow: 0 4px 16px rgba(0,0,0,0.1);
+    --glass-bg: rgba(255,255,255,0.72);
+    --glass-border: rgba(255,255,255,0.4);
+    --icon-inactive: rgba(0,0,0,0.4);
+  }
+  [data-theme="solarized-dark"] {
+    --bg: #002b36;
+    --surface: #073642;
+    --text: #839496;
+    --text-muted: #586e75;
+    --border: #09424d;
+    --danger: #dc322f;
+    --shadow: 0 4px 16px rgba(0,0,0,0.5);
+    --glass-bg: rgba(7,54,66,0.8);
+    --glass-border: rgba(255,255,255,0.08);
+    --icon-inactive: rgba(131,148,150,0.5);
+  }
+  [data-theme="solarized-light"] {
+    --bg: #fdf6e3;
+    --surface: #eee8d5;
+    --text: #657b83;
+    --text-muted: #93a1a1;
+    --border: #d5c4a1;
+    --danger: #dc322f;
+    --shadow: 0 4px 14px rgba(0,0,0,0.12);
+    --glass-bg: rgba(253,246,227,0.8);
+    --glass-border: rgba(0,0,0,0.1);
+    --icon-inactive: rgba(101,123,131,0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+    z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 20px 18px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 22px; font-weight: 700;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.3px;
+  }
+  .sidebar-logo span { font-size: 18px; opacity: 0.6; }
+  .sidebar-search {
+    padding: 12px 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-wrap {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 10px;
+  }
+  .search-wrap svg { opacity: 0.4; flex-shrink: 0; }
+  .search-wrap input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 13px; width: 100%;
+  }
+  .search-wrap input::placeholder { color: var(--text-muted); }
+  .sidebar-section { padding: 10px 12px 4px; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 14px; cursor: pointer;
+    font-size: 13.5px; color: var(--text-muted);
+    border-radius: 0; transition: all 0.15s;
+    border-left: 3px solid transparent;
+    user-select: none;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .sidebar-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border-left-color: var(--accent); }
+  .sidebar-item .count {
+    margin-left: auto; font-size: 11px;
+    background: rgba(255,255,255,0.08); border-radius: 10px;
+    padding: 1px 7px; color: var(--text-muted);
+  }
+  .sidebar-item.active .count { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+  .folder-list { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+  .folder-list::-webkit-scrollbar { width: 4px; }
+  .folder-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .add-folder-btn {
+    margin: 8px 12px 4px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 7px;
+    background: none; border: 1px dashed var(--border);
+    color: var(--text-muted); font-size: 12.5px;
+    cursor: pointer; width: calc(100% - 24px);
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .add-folder-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sidebar-bottom { border-top: 1px solid var(--border); }
+
+  /* TAGS SIDEBAR */
+  .tag-sidebar-item { display: flex; align-items: center; gap: 9px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text-muted); border-radius: 0; transition: all 0.15s; border-left: 3px solid transparent; user-select: none; font-family: 'Inter', sans-serif; }
+  .tag-sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .tag-sidebar-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border-left-color: var(--accent); }
+  .tag-sidebar-item .count { margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 1px 7px; color: var(--text-muted); }
+  .tag-sidebar-item.active .count { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .topbar h1 { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); flex: 1; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 10px; border: none;
+    cursor: pointer; font-family: 'Inter', sans-serif; font-size: 13px;
+    font-weight: 500; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #1a0e06; }
+  .btn-primary:hover { background: #f0a870; }
+  .btn-ghost { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+  .btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  .btn-danger { background: rgba(192,81,74,0.15); color: var(--danger); border: 1px solid rgba(192,81,74,0.3); }
+  .btn-danger:hover { background: rgba(192,81,74,0.25); }
+
+  .tag-filter-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; flex-shrink: 0;
+  }
+  .tag-filter-bar::-webkit-scrollbar { height: 0; }
+  .tag-filter-bar span { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 20px; font-size: 12px;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04); color: var(--text-muted);
+    transition: all 0.15s; font-family: 'Inter', sans-serif;
+  }
+  .tag-chip:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .tag-chip.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: var(--accent); }
+
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* NOTES GRID */
+  .notes-grid {
+    columns: 4 220px; gap: 16px;
+  }
+  .note-card {
+    break-inside: avoid; margin-bottom: 16px;
+    border-radius: 14px;
+    padding: 14px 15px 13px;
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3), var(--shadow);
+  }
+  .note-card:hover { transform: scale(1.02) rotate(0deg) !important; box-shadow: 6px 8px 20px rgba(0,0,0,0.5); }
+  .note-card-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px; font-weight: 700;
+    margin-bottom: 6px; line-height: 1.2;
+    word-break: break-word;
+  }
+  .note-card-body {
+    font-size: 13px; line-height: 1.5;
+    opacity: 0.85; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical; overflow: hidden;
+    white-space: pre-wrap;
+  }
+  .note-card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px; font-size: 11px; opacity: 0.6;
+  }
+  .note-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .note-tag {
+    padding: 2px 7px; border-radius: 10px; font-size: 11px;
+    background: rgba(0,0,0,0.2);
+  }
+  .note-card-pin {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    width: 14px; height: 14px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #aaa, #555);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 80px 20px; text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-state svg { opacity: 0.2; margin-bottom: 16px; }
+  .empty-state h3 { font-family: 'Inter', sans-serif; font-size: 22px; margin-bottom: 6px; opacity: 0.5; }
+  .empty-state p { font-size: 13px; opacity: 0.4; }
+
+  /* MODAL OVERLAY */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 100;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.open { display: flex; }
+
+  /* NOTE EDITOR MODAL */
+  .note-modal {
+    background: var(--surface); border-radius: 16px;
+    width: 620px; max-width: 95vw; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .note-modal-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .color-dot {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    cursor: pointer; border: 2px solid rgba(255,255,255,0.2);
+    transition: transform 0.15s;
+  }
+  .color-dot:hover { transform: scale(1.2); }
+  .color-picker-wrap { position: relative; }
+  .color-options {
+    display: none; position: absolute; top: 26px; left: 0;
+    background: #2a221b; border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px; z-index: 200;
+    display: none; flex-wrap: wrap; gap: 7px; width: 162px;
+    box-shadow: var(--shadow);
+  }
+  .color-options.open { display: flex; }
+  .color-opt {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: all 0.15s;
+  }
+  .color-opt:hover, .color-opt.sel { border-color: white; transform: scale(1.1); }
+  .note-modal-title {
+    flex: 1; background: none; border: none; outline: none;
+    font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700;
+    color: var(--text); width: 100%;
+  }
+  .note-modal-title::placeholder { color: var(--text-muted); }
+  .note-modal-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .note-modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  .note-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; position: relative; }
+  .note-modal-body::-webkit-scrollbar { width: 4px; }
+  .note-modal-body::-webkit-scrollbar-thumb { background: var(--border); }
+  .note-modal-textarea {
+    width: 100%; min-height: 180px; background: none; border: none;
+    outline: none; color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 14px; line-height: 1.7; resize: none;
+  }
+  .note-modal-textarea::placeholder { color: var(--text-muted); }
+  .tag-input-wrap {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 10px 12px; background: rgba(0,0,0,0.2);
+    border-radius: 10px; margin-top: 10px; min-height: 40px;
+  }
+  .tag-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent);
+    border-radius: 12px; padding: 3px 9px 3px 9px;
+    font-size: 12px;
+  }
+  .tag-badge .rm { cursor: pointer; opacity: 0.6; }
+  .tag-badge .rm:hover { opacity: 1; }
+  .tag-input {
+    background: none; border: none; outline: none;
+    font-size: 12.5px; color: var(--text);
+    font-family: 'Inter', sans-serif; min-width: 80px; flex: 1;
+  }
+  .tag-input::placeholder { color: var(--text-muted); font-style: italic; }
+  .tag-suggestions {
+    position: absolute; left: 12px; right: 12px; bottom: 60px; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; max-height: 150px; overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: none;
+  }
+  .tag-suggestions.show { display: block; }
+  .tag-suggestion {
+    padding: 8px 14px; font-size: 13px; cursor: pointer;
+    color: var(--text); transition: background 0.1s;
+  }
+  .tag-suggestion:active, .tag-suggestion.highlighted { background: rgba(255,255,255,0.08); }
+  .tag-suggestion .match { color: var(--accent); font-weight: 600; }
+  .note-modal-footer {
+    padding: 12px 20px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+    flex-shrink: 0;
+  }
+  .note-modal-footer-row {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .folder-select {
+    background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); padding: 6px 10px;
+    font-family: 'Inter', sans-serif; font-size: 13px; outline: none;
+    cursor: pointer;
+  }
+  .note-meta {
+    font-size: 12px; color: var(--text-muted);
+    padding: 6px 10px; background: rgba(0,0,0,0.15);
+    border-radius: 6px; line-height: 1.5;
+  }
+  .note-editor-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .note-editor-tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 14px; font-size: 11px;
+    cursor: pointer; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.05); color: var(--text-muted);
+    transition: all 0.15s; font-family: 'Inter',sans-serif;
+  }
+  .note-editor-tag-chip:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  .note-editor-tag-chip.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: var(--accent); }
+
+  /* TIMELINE MODAL */
+  .timeline-modal {
+    background: var(--surface); border-radius: 16px;
+    width: 500px; max-width: 95vw; max-height: 85vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .timeline-modal h2 { padding: 16px 20px; font-family: 'Inter', sans-serif; font-size: 20px; border-bottom: 1px solid var(--border); }
+  .timeline-list { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .timeline-item { display: flex; gap: 14px; margin-bottom: 20px; }
+  .timeline-line { display: flex; flex-direction: column; align-items: center; }
+  .timeline-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 4px; }
+  .timeline-bar { width: 2px; flex: 1; background: var(--border); margin-top: 5px; }
+  .timeline-content { flex: 1; }
+  .timeline-date { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+  .timeline-text { font-size: 13px; line-height: 1.5; background: rgba(255,255,255,0.03); border-radius: 7px; padding: 8px 12px; border: 1px solid var(--border); white-space: pre-wrap; }
+
+  /* TIMELINE VIEW (date-grouped) */
+  .timeline-view { padding: 0; }
+  .timeline-date-header {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 16px 4px 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 12px; position: sticky; top: 0;
+    background: var(--bg); z-index: 2;
+  }
+
+  /* CONFIRM MODAL */
+  .confirm-modal {
+    background: var(--surface); border-radius: 16px;
+    width: 360px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    border: 1px solid var(--border); padding: 24px;
+    text-align: center;
+  }
+  .confirm-modal h3 { font-size: 16px; margin-bottom: 8px; }
+  .confirm-modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; justify-content: center; }
+
+  /* FOLDER ADD MODAL */
+  .folder-modal {
+    background: var(--surface); border-radius: 16px;
+    width: 340px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    border: 1px solid var(--border); padding: 22px;
+  }
+  .folder-modal h3 { font-size: 16px; margin-bottom: 14px; }
+  .folder-modal input {
+    width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 13px; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 14px; outline: none;
+    margin-bottom: 14px;
+  }
+  .folder-modal input:focus { border-color: var(--accent); }
+  .emoji-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .emoji-opt { font-size: 20px; cursor: pointer; padding: 4px 6px; border-radius: 6px; border: 2px solid transparent; }
+  .emoji-opt:hover, .emoji-opt.sel { border-color: var(--accent); background: rgba(232,147,90,0.1); }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: #2e261e; border: 1px solid var(--border);
+    border-radius: 9px; padding: 10px 16px;
+    font-size: 13px; color: var(--text);
+    box-shadow: var(--shadow); animation: slideIn 0.3s ease;
+    max-width: 260px;
+  }
+  @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  mark { background: rgba(232,147,90,0.35); color: inherit; border-radius: 2px; padding: 0 2px; }
+
+  /* SETTINGS MODAL */
+  .settings-modal {
+    background: var(--surface); border-radius: 16px;
+    width: 420px; max-width: 95vw; max-height: 90vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    border: 1px solid var(--border); overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .settings-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .settings-header h2 { font-size: 17px; font-weight: 600; }
+  .settings-body { padding: 20px; overflow-y: auto; }
+  .settings-body::-webkit-scrollbar { width: 4px; }
+  .settings-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .settings-section { margin-bottom: 22px; }
+  .settings-section:last-child { margin-bottom: 0; }
+  .settings-label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .theme-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .theme-card {
+    border: 2px solid var(--border); border-radius: 10px;
+    padding: 12px; cursor: pointer; transition: all 0.15s;
+    text-align: center; font-size: 13px; font-weight: 500;
+  }
+  .theme-card:hover { border-color: var(--text-muted); }
+  .theme-card.active { border-color: var(--accent); background: rgba(232,147,90,0.08); }
+  .theme-card .preview {
+    display: flex; gap: 3px; justify-content: center; margin-bottom: 8px;
+  }
+  .theme-card .preview span {
+    width: 24px; height: 24px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);
+  }
+  .accent-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .accent-swatch {
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: all 0.15s;
+  }
+  .accent-swatch:hover { transform: scale(1.15); }
+  .accent-swatch.active { border-color: var(--text); }
+  .accent-reset {
+    margin-top: 10px; font-size: 12px; color: var(--text-muted);
+    cursor: pointer; background: none; border: none;
+    font-family: 'Inter', sans-serif; text-decoration: underline;
+  }
+  .accent-reset:hover { color: var(--text); }
+
+  /* PINNED */
+  .note-card.pinned .note-card-pin { background: radial-gradient(circle at 35% 35%, #ff6b6b, #c0392b) !important; }
+  .pin-btn { color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 6px; display:inline-flex; align-items:center; gap:4px; font-size:12px; background:none; border:none; font-family:'Inter',sans-serif; }
+  .pin-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  .pin-btn.active { color: var(--accent); }
+
+  /* FOLDER DELETE */
+  .folder-item-wrap { display: flex; align-items: center; }
+  .folder-item-wrap .sidebar-item { flex: 1; min-width: 0; }
+  .folder-del-btn { opacity: 0; background: none; border: none; color: var(--danger); cursor: pointer; padding: 4px 8px; font-size: 14px; transition: opacity 0.15s; flex-shrink: 0; }
+  .folder-item-wrap:hover .folder-del-btn { opacity: 0.6; }
+  .folder-del-btn:hover { opacity: 1 !important; }
+
+  /* HOME VIEW */
+  .home-view { padding: 10px 0; }
+  .home-folder-section { margin-bottom: 28px; }
+  .home-section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .home-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .home-suggestion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 4px; }
+  .home-suggestion-grid .suggestion-card { text-align:left; }
+  .home-folder-card.recent-drag-over { outline: 2px dashed var(--accent); outline-offset: -3px; }
+  .home-folder-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 14px; cursor: pointer; text-align: center; transition: all 0.15s;
+    user-select: none;
+  }
+  .home-folder-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .home-folder-card .emoji { font-size: 28px; display: block; margin-bottom: 6px; }
+  .home-folder-card .name { font-size: 13px; font-weight: 500; }
+  .home-folder-card .count { font-size: 11px; color: var(--text-muted); }
+
+  /* CARD SIZES */
+  .note-card.compact .note-card-body { -webkit-line-clamp: 3; font-size: 12px; }
+  .note-card.compact .note-card-title { font-size: 15px; }
+  .note-card.compact { padding: 10px 12px 10px; }
+  .note-card.spacious .note-card-body { -webkit-line-clamp: 12; font-size: 14px; }
+  .note-card.spacious .note-card-title { font-size: 20px; }
+  .note-card.spacious { padding: 18px 20px 16px; }
+  .notes-grid.compact { columns: 5 180px; gap: 12px; }
+  .notes-grid.spacious { columns: 3 280px; gap: 20px; }
+  .notes-grid.default { columns: 4 220px; gap: 16px; }
+
+  /* SIZE TOGGLE */
+  .size-toggle { display: flex; gap: 3px; }
+  .size-btn { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--text-muted); cursor: pointer; font-size: 11px; font-family: 'Inter',sans-serif; transition: all 0.15s; line-height:1; }
+  .size-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .size-btn.active { background: var(--accent); color: #1a0e06; border-color: var(--accent); }
+
+  /* NOTE-LEVEL SIZE */
+  .note-size-toggle { display: flex; gap: 4px; margin: 0 4px; }
+  .note-size-btn { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border); background: none; color: var(--text-muted); cursor: pointer; font-size: 10px; font-family: 'Inter',sans-serif; display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:all 0.15s; }
+  .note-size-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .note-size-btn.active { background: var(--accent); color: #1a0e06; border-color: var(--accent); }
+
+  /* TOGGLE SWITCH */
+  .toggle-wrap { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .toggle-switch { position: relative; width: 34px; height: 18px; background: var(--border); border-radius: 9px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+  .toggle-switch.active { background: var(--accent); }
+  .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: transform 0.2s; }
+  .toggle-switch.active::after { transform: translateX(16px); }
+  .toggle-label { font-size: 11px; color: var(--text-muted); cursor: default; user-select: none; }
+
+  /* SYNC BTN */
+  .sync-btn { padding: 6px 8px !important; }
+  .sync-btn svg { display: block; }
+
+  /* IOS DOCK */
+  .dock-container {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: center;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 8px));
+    padding-left: 16px; padding-right: 16px;
+    z-index: 9999; pointer-events: none;
+  }
+  .dock {
+    pointer-events: auto;
+    display: flex; align-items: flex-end; gap: 6px;
+    padding: 6px 14px; height: 60px; box-sizing: border-box;
+    border-radius: 26px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(190%);
+    -webkit-backdrop-filter: blur(20px) saturate(190%);
+    border: 0.5px solid var(--glass-border);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .dock-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; width: 48px; height: 48px; background: transparent; border: none;
+    cursor: pointer; padding: 0;
+    transition: transform 0.2s cubic-bezier(0.25,1,0.5,1), background-color 0.2s;
+    border-radius: 14px; -webkit-tap-highlight-color: transparent;
+  }
+  .dock-item:active { transform: scale(0.92); background: rgba(0,0,0,0.05); }
+  @media (prefers-color-scheme: dark) {
+    .dock-item:active { background: rgba(255,255,255,0.08); }
+  }
+  .dock-icon {
+    width: 22px; height: 22px; fill: none;
+    stroke: var(--icon-inactive); stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+    transition: stroke 0.2s;
+  }
+  .dock-item.active .dock-icon { stroke: var(--accent); }
+  .dock-label {
+    font-size: 9px; color: var(--text-muted);
+    letter-spacing: 0.3px; line-height: 1;
+    transition: color 0.2s;
+  }
+  .dock-item.active .dock-label { color: var(--accent); }
+
+  .note-modal-open .dock-container,
+  .more-overlay-open .dock-container { display: none !important; }
+
+  /* MORE MENU (MOBILE) */
+  .more-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+  .more-overlay.open { display: flex; }
+  .more-sheet {
+    background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-height: 70vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .more-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .more-header span { font-size: 17px; font-weight: 600; }
+  .more-body { overflow-y: auto; flex: 1; padding: 8px 0; }
+  .more-section {
+    padding: 14px 18px 6px; font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .more-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; cursor: pointer; font-size: 14px; color: var(--text);
+    transition: background 0.1s; min-height: 44px;
+  }
+  .more-item:active { background: rgba(255,255,255,0.06); }
+  .more-item svg { opacity: 0.5; flex-shrink: 0; width: 16px; height: 16px; }
+  .more-item .count {
+    margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 1px 7px; color: var(--text-muted);
+  }
+  @media (min-width: 769px) {
+    .more-btn, .more-overlay { display: none !important; }
+  }
+
+  /* DRAG & DROP */
+  .note-card.dragging { opacity: 0.4; transform: scale(0.95) rotate(0deg) !important; }
+  .note-card.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; transform: scale(1.02) rotate(0deg) !important; }
+
+  /* MOBILE */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .sidebar-overlay { display: none; }
+    .main { width: 100vw; padding-bottom: 0; }
+    .topbar { padding: 10px 12px; min-height: 48px; gap: 8px; }
+    .topbar .menu-btn { display: none; }
+    .topbar .more-btn { display: flex; align-items: center; justify-content: center; background: none; border: none; color: var(--text); cursor: pointer; padding: 6px; border-radius: 10px; flex-shrink:0; }
+    .topbar .more-btn:active { background: rgba(255,255,255,0.1); }
+    .topbar h1 { font-size: 18px; }
+    .topbar-actions .btn { padding: 6px 10px; font-size: 12px; }
+    .dock-container { display: flex; }
+    .content { padding: 10px; padding-bottom: 24px; }
+    .notes-grid { columns: 2 140px; gap: 8px; }
+    .notes-grid.default { columns: 2 140px; gap: 8px; }
+    .notes-grid.compact { columns: 2 120px; gap: 6px; }
+    .notes-grid.spacious { columns: 1 100%; gap: 10px; }
+    .note-card { margin-bottom: 8px; padding: 12px 12px 11px; }
+    .note-card:hover { transform: none !important; }
+    .note-card:active { transform: scale(0.98) !important; opacity: 0.9; }
+    .note-card-title { font-size: 16px; }
+    .note-card-body { font-size: 12px; -webkit-line-clamp: 4; }
+    .note-card-footer { font-size: 10px; }
+    .note-card-pin { width: 12px; height: 12px; top: -8px; }
+    .home-folder-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+    .home-suggestion-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .home-folder-card { padding: 14px 10px; }
+    .home-folder-card .emoji { font-size: 24px; }
+    .home-folder-card:active { transform: scale(0.96); }
+    .tag-filter-bar { padding: 6px 10px; }
+    .tag-chip { padding: 5px 10px; font-size: 12px; min-height: 30px; }
+    .note-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    .note-modal-header { padding: 10px 12px; min-height: 48px; }
+    .note-modal-body { padding: 10px 12px; }
+    .note-modal-footer { padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0)); }
+    .note-modal-title { font-size: 18px; }
+    .note-modal-textarea { min-height: 120px; font-size: 14px; }
+    .note-size-toggle { display: none; }
+    .settings-modal, .timeline-modal, .confirm-modal, .folder-modal { max-width: 94vw; }
+    .settings-modal { width: 94vw; }
+    .confirm-modal { width: 88vw; }
+    .theme-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .theme-card { padding: 10px; }
+    .accent-swatch { width: 28px; height: 28px; }
+    .home-view { padding: 4px 0; }
+    .sidebar-item { padding: 10px 14px; min-height: 40px; }
+    .add-folder-btn { min-height: 36px; }
+    .folder-del-btn { opacity: 0.6; padding: 6px 10px; }
+    .toast { font-size: 12px; padding: 8px 14px; }
+    .toast-container { bottom: 80px; right: 12px; left: 12px; }
+    .size-toggle { gap: 2px; }
+    .size-btn { padding: 3px 6px; font-size: 10px; }
+    .timeline-date-header { font-size: 11px; padding: 12px 4px 6px; }
+  }
+  @media (max-width: 420px) {
+    .notes-grid { columns: 1 100%; gap: 8px; }
+    .notes-grid.default { columns: 1 100%; gap: 8px; }
+    .home-folder-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 769px) {
+    .menu-btn, .sidebar-overlay, .dock-container { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">📝 Notizzettel <span>v1</span></div>
+  <div class="sidebar-search">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Suchen…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="folder-list">
+    <div class="sidebar-section">Ansichten</div>
+    <div class="sidebar-item active" data-view="home">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Startseite
+      <span class="count" id="countAll">0</span>
+    </div>
+    <div class="sidebar-item" data-view="timeline">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Timeline
+    </div>
+
+    <div class="sidebar-section" style="margin-top:8px;">Ordner</div>
+    <button class="add-folder-btn" id="addFolderBtn" style="margin:2px 12px 4px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Ordner erstellen
+    </button>
+    <div id="folderList" style="padding-top:0;"></div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-item" onclick="openSettings()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Einstellungen
+    </div>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <button class="more-btn" onclick="openMoreMenu()" aria-label="Mehr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+    </button>
+    <h1 id="viewTitle">Alle Notizen</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost sync-btn" onclick="manualSync()" title="Mit Cloud synchronisieren" id="syncBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <div class="toggle-wrap">
+        <div class="toggle-switch" id="offlineToggle" onclick="toggleOfflineMode()"></div>
+        <span class="toggle-label">Offline</span>
+      </div>
+      <div class="size-toggle" id="sizeToggle">
+        <button class="size-btn" data-size="compact" title="Kompakt">S</button>
+        <button class="size-btn active" data-size="default" title="Normal">M</button>
+        <button class="size-btn" data-size="spacious" title="Groß">L</button>
+      </div>
+      <button class="btn btn-primary" id="newNoteBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Neue Notiz
+      </button>
+    </div>
+  </div>
+
+  <div class="tag-filter-bar" id="tagFilterBar" style="display:none;">
+    <span>Tags:</span>
+    <div id="tagChips"></div>
+  </div>
+
+  <div class="content">
+    <div id="allFolderSection" style="display:none;"></div>
+    <div class="notes-grid" id="notesGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h3>Keine Notizen</h3>
+      <p>Klicke auf „Neue Notiz" um loszulegen</p>
+    </div>
+  </div>
+</main>
+
+<!-- NOTE EDITOR OVERLAY -->
+<div class="overlay" id="noteOverlay">
+  <div class="note-modal" id="noteModal">
+    <div class="note-modal-header">
+      <div class="color-picker-wrap">
+        <div class="color-dot" id="colorDot" onclick="toggleColorPicker()"></div>
+        <div class="color-options" id="colorOptions"></div>
+      </div>
+      <div class="note-size-toggle">
+        <button class="note-size-btn" data-note-size="compact" onclick="setNoteSize('compact')" title="Klein">S</button>
+        <button class="note-size-btn active" data-note-size="default" onclick="setNoteSize('default')" title="Normal">M</button>
+        <button class="note-size-btn" data-note-size="spacious" onclick="setNoteSize('spacious')" title="Groß">L</button>
+      </div>
+      <input class="note-modal-title" id="noteTitle" placeholder="Titel…" autocomplete="off">
+      <button class="note-modal-close" onclick="closeNoteModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="note-modal-body">
+      <textarea class="note-modal-textarea" id="noteBody" placeholder="Schreibe hier… #tag für Tags (Enter zum Bestätigen)" rows="8"></textarea>
+      <div class="tag-suggestions" id="tagSuggestions"></div>
+      <div class="tag-input-wrap" id="tagInputWrap">
+        <div id="tagBadges"></div>
+        <input class="tag-input" id="tagInput" placeholder="#tag hinzufügen…" autocomplete="off">
+      </div>
+    </div>
+    <div class="note-modal-footer">
+      <div class="note-modal-footer-row">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <select class="folder-select" id="folderSelect">
+            <option value="">Kein Ordner</option>
+          </select>
+          <button class="pin-btn" id="pinBtn" onclick="togglePin()" title="Anpinnen">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+          </button>
+          <button class="btn btn-ghost" style="padding:6px 10px;" onclick="openTimeline()" title="Verlauf">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </button>
+          <button class="btn btn-danger" style="padding:6px 10px;" onclick="deleteNote()" title="Löschen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
+        <div class="note-meta" id="noteMeta"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text-muted);">Tags:</span>
+        <div class="note-editor-tags" id="noteEditorTags"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TIMELINE OVERLAY -->
+<div class="overlay" id="timelineOverlay">
+  <div class="timeline-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+      <h2 style="padding:0;border:none;font-family:'Inter',sans-serif;font-size:20px;">📅 Verlauf</h2>
+      <button class="note-modal-close" onclick="closeTimeline()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="timeline-list" id="timelineList"></div>
+  </div>
+</div>
+
+<!-- CONFIRM OVERLAY -->
+<div class="overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <h3 id="confirmTitle">Sicher?</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn btn-primary" id="confirmOkBtn">OK</button>
+      <button class="btn btn-danger" id="confirmAltBtn" style="display:none;">Alternativ</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOLDER MODAL -->
+<div class="overlay" id="folderOverlay">
+  <div class="folder-modal">
+    <h3>Neuer Ordner</h3>
+    <div class="emoji-row" id="emojiRow"></div>
+    <input type="text" id="folderNameInput" placeholder="Ordnername…" autocomplete="off">
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeFolderModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="createFolder()">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="overlay" id="settingsOverlay">
+  <div class="settings-modal">
+    <div class="settings-header">
+      <h2>Einstellungen</h2>
+      <button class="note-modal-close" onclick="closeSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">
+        <div class="settings-label">Design</div>
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-label">Akzentfarbe</div>
+        <div class="accent-grid" id="accentGrid"></div>
+        <button class="accent-reset" onclick="resetAccent()">Auf Standard zurücksetzen</button>
+      </div>
+      <div class="settings-section">
+        <div class="settings-label">Daten</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="exportData()" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importInput').click()" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+          </button>
+          <input type="file" id="importInput" accept=".json" style="display:none;" onchange="importData(event)">
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-label">Lokale Daten</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-danger" onclick="clearLocalStorage()" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            LocalStorage leeren
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- iOS DOCK (MOBILE) -->
+<div class="dock-container">
+  <nav class="dock">
+    <button class="dock-item" data-view="home" onclick="setView('home')">
+      <svg class="dock-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="dock-label">Home</span>
+    </button>
+    <button class="dock-item" onclick="openNewNote()">
+      <svg class="dock-icon" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="dock-label">Neu</span>
+    </button>
+    <button class="dock-item" data-view="timeline" onclick="setView('timeline')">
+      <svg class="dock-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="dock-label">Zuletzt</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MORE MENU (MOBILE) -->
+<div class="overlay more-overlay" id="moreOverlay" onclick="closeMoreMenu()">
+  <div class="more-sheet" onclick="event.stopPropagation()">
+    <div class="more-header">
+      <span>Sonstiges</span>
+      <button class="note-modal-close" onclick="closeMoreMenu()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="more-body">
+      <div class="more-item" onclick="openSettings();closeMoreMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Einstellungen
+      </div>
+      <div class="more-section">Ordner</div>
+      <div id="moreFolderList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const NOTE_COLORS = [
+  '#f7d070','#f4a261','#e76f51','#e9c46a',
+  '#90be6d','#43aa8b','#4d908e','#577590',
+  '#277da1','#9b72cf','#c77dff','#f72585',
+  '#ffb3c6','#b5e48c','#99d98c','#52b788',
+  '#74c2e1','#a9c4eb','#ffd6a5','#ffc6ff',
+];
+const ACCENT_COLORS = [
+  '#e8935a','#f4a261','#c0514a','#7eb8a4',
+  '#43aa8b','#4d908e','#577590','#277da1',
+  '#9b72cf','#c77dff','#f72585','#e9c46a',
+];
+const NOTE_FONTS = [
+  "'Inter', sans-serif",
+];
+const EMOJIS = ['📁','📂','🗂️','💡','⭐','🔒','🎨','🧪','📚','🚀','💼','🏠','🎮','✈️','🎵'];
+
+const THEMES = [
+  { id:'system',     label:'System',        bg:'#666',  surface:'#888' },
+  { id:'dark',       label:'Dunkel',        bg:'#1a1410', surface:'#221c16' },
+  { id:'light',      label:'Hell',          bg:'#f8f5f0', surface:'#ffffff' },
+  { id:'solarized-dark',  label:'Solarized Dark',  bg:'#002b36', surface:'#073642' },
+  { id:'solarized-light', label:'Solarized Light', bg:'#fdf6e3', surface:'#eee8d5' },
+];
+
+let state = {
+  notes: [], folders: [],
+  currentView: 'home',
+  activeFolder: null, activeTags: [],
+  editingNoteId: null, editingColor: null,
+  editingTags: [], searchQuery: '',
+  confirmCallback: null, selectedEmoji: '📁',
+  theme: 'dark', accent: '#e8935a',
+  cardSize: 'default',
+  offlineMode: false,
+  lastSync: null,
+};
+
+function load() {
+  try {
+    const d = localStorage.getItem('notizzettel_v3');
+    if (d) {
+      const parsed = JSON.parse(d);
+      state.theme = parsed.theme || 'dark';
+      state.accent = parsed.accent || '#e8935a';
+      state.cardSize = parsed.cardSize || 'default';
+      state.offlineMode = parsed.offlineMode || false;
+      if (state.offlineMode) {
+        state.notes = parsed.notes || [];
+        state.folders = parsed.folders || [];
+      }
+    }
+  } catch(e) {}
+}
+
+function save() {
+  const data = {
+    theme: state.theme, accent: state.accent,
+    cardSize: state.cardSize, offlineMode: state.offlineMode,
+    notes: state.notes, folders: state.folders,
+  };
+  localStorage.setItem('notizzettel_v3', JSON.stringify(data));
+  scheduleSync();
+}
+
+// ─── FIRESTORE ─────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAySiMGc3vbfkPwlTuLFnMRdZsBSLvZ1p8",
+  authDomain: "cooking-plan-12404.firebaseapp.com",
+  projectId: "cooking-plan-12404",
+  storageBucket: "cooking-plan-12404.firebasestorage.app",
+  messagingSenderId: "646774578838",
+  appId: "1:646774578838:web:fa6cb0513872199502acb7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let _syncTimer = null;
+function scheduleSync() {
+  if (state.offlineMode) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(syncToFirestore, 2000);
+}
+
+async function syncToFirestore() {
+  try {
+    await db.collection('app_data').doc('main').set({
+      notes: state.notes,
+      folders: state.folders,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch(e) {
+    console.error('Firestore sync error:', e);
+  }
+}
+
+async function syncFromFirestore() {
+  const btn = document.getElementById('syncBtn');
+  if (btn) btn.style.opacity = '0.5';
+  try {
+    const doc = await db.collection('app_data').doc('main').get();
+    if (doc.exists) {
+      const data = doc.data();
+      const localNotes = JSON.stringify(state.notes);
+      const localFolders = JSON.stringify(state.folders);
+      const remoteNotes = JSON.stringify(data.notes||[]);
+      const remoteFolders = JSON.stringify(data.folders||[]);
+      const hasDiff = localNotes !== remoteNotes || localFolders !== remoteFolders;
+      if (hasDiff && state.notes.length > 0) {
+        await new Promise(resolve => {
+          showConfirm(
+            'Datenkonflikt',
+            'Es gibt Unterschiede zwischen lokalen Daten und der Cloud. Die Cloud-Version wird übernommen.',
+            () => {
+              state.notes = data.notes || [];
+              state.folders = data.folders || [];
+              save();
+              render();
+              toast('Cloud-Daten geladen');
+              resolve();
+            },
+            null, 'Cloud-Version verwenden'
+          );
+        });
+      } else {
+        if (data.notes) state.notes = data.notes;
+        if (data.folders) state.folders = data.folders;
+        save();
+        render();
+        toast('Daten von Cloud geladen');
+      }
+    } else {
+      await db.collection('app_data').doc('main').set({
+        notes: state.notes,
+        folders: state.folders,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  } catch(e) {
+    console.error('Firestore load error:', e);
+    if (!state.offlineMode) toast('Cloud-Sync fehlgeschlagen');
+  }
+  if (btn) btn.style.opacity = '1';
+}
+
+function manualSync() {
+  syncFromFirestore();
+}
+
+async function toggleOfflineMode() {
+  if (state.offlineMode) {
+    await syncToFirestore();
+    state.offlineMode = false;
+    save();
+    document.getElementById('offlineToggle').classList.remove('active');
+    document.getElementById('syncBtn').style.display = '';
+    toast('Offline deaktiviert – Daten synchronisiert');
+  } else {
+    state.offlineMode = true;
+    document.getElementById('syncBtn').style.display = 'none';
+    save();
+    document.getElementById('offlineToggle').classList.add('active');
+    toast('Offline aktiviert – Daten lokal');
+  }
+  render();
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function randColor() { return NOTE_COLORS[Math.floor(Math.random() * NOTE_COLORS.length)]; }
+function randFont() { return NOTE_FONTS[Math.floor(Math.random() * NOTE_FONTS.length)]; }
+
+function isLight(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return (r*299 + g*587 + b*114) / 1000 > 140;
+}
+
+function fmt(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return 'Gerade eben';
+  if (diff < 3600) return `vor ${Math.floor(diff/60)} Min.`;
+  if (diff < 86400) return `vor ${Math.floor(diff/3600)} Std.`;
+  if (diff < 604800) return `vor ${Math.floor(diff/86400)} Tagen`;
+  return d.toLocaleDateString('de-DE', {day:'2-digit',month:'short',year:'numeric'});
+}
+function fmtFull(ts) {
+  return new Date(ts).toLocaleString('de-DE', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function extractHashtags(text) {
+  const matches = text.match(/#[\w\u00c0-\u024f]+/gi) || [];
+  return [...new Set(matches.map(t => t.toLowerCase()))];
+}
+
+// ─── RENDERING ───────────────────────────────────────────────────────────────
+function allTags() {
+  const set = new Set();
+  state.notes.forEach(n => (n.tags||[]).forEach(t => set.add(t)));
+  if (state.notes.some(n => n.pinned)) set.add('angepinnt');
+  return [...set].sort();
+}
+
+function renderSidebar() {
+  const fl = document.getElementById('folderList');
+  fl.innerHTML = '';
+  state.folders.forEach(f => {
+    const count = state.notes.filter(n=>n.folderId===f.id).length;
+    const wrap = document.createElement('div');
+    wrap.className = 'folder-item-wrap';
+    const el = document.createElement('div');
+    el.className = 'sidebar-item' + (state.currentView==='folder'&&state.activeFolder===f.id?' active':'');
+    el.dataset.folderId = f.id;
+    el.innerHTML = `
+      <span style="font-size:14px;">${f.emoji||'📁'}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</span>
+      <span class="count">${count}</span>
+    `;
+    el.addEventListener('click', () => setView('folder', f.id));
+    wrap.appendChild(el);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'folder-del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Ordner löschen';
+    delBtn.onclick = e => { e.stopPropagation(); deleteFolder(f.id); };
+    wrap.appendChild(delBtn);
+    fl.appendChild(wrap);
+  });
+
+  // tags in sidebar
+  const tags = allTags();
+  if (tags.length > 0) {
+    const sec = document.createElement('div');
+    sec.className = 'sidebar-section'; sec.style.marginTop = '8px';
+    sec.id = 'tagSidebarSection';
+    sec.textContent = 'Tags';
+    fl.appendChild(sec);
+    tags.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'tag-sidebar-item' + (state.activeTags.includes(t) ? ' active' : '');
+      el.dataset.tagName = t;
+      el.innerHTML = `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t)}</span><span class="count">${t === 'angepinnt' ? state.notes.filter(n=>n.pinned).length : state.notes.filter(n=>(n.tags||[]).includes(t)).length}</span>`;
+      el.addEventListener('click', () => toggleTagFilter(t));
+      fl.appendChild(el);
+    });
+  } else {
+    const old = document.getElementById('tagSidebarSection');
+    if (old) old.remove();
+    document.querySelectorAll('.tag-sidebar-item').forEach(el => el.remove());
+  }
+
+  const sel = document.getElementById('folderSelect');
+  sel.innerHTML = '<option value="">Kein Ordner</option>';
+  state.folders.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.id; o.textContent = `${f.emoji||'📁'} ${f.name}`;
+    sel.appendChild(o);
+  });
+
+  document.getElementById('countAll').textContent = state.notes.length;
+
+  document.querySelectorAll('.sidebar-item[data-view]').forEach(el => {
+    el.classList.toggle('active', state.currentView===el.dataset.view && !['folder'].includes(state.currentView));
+  });
+
+  // tag filter bar
+  const bar = document.getElementById('tagFilterBar');
+  const chips = document.getElementById('tagChips');
+  if (tags.length > 0 && state.currentView !== 'folder') {
+    bar.style.display = 'flex';
+    chips.innerHTML = '';
+    tags.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'tag-chip' + (state.activeTags.includes(t)?' active':'');
+      el.textContent = t;
+      el.onclick = () => toggleTagFilter(t);
+      chips.appendChild(el);
+    });
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function getFilteredNotes() {
+  let notes = state.notes;
+  if (state.currentView==='folder') notes = state.notes.filter(n=>n.folderId===state.activeFolder);
+  if (state.activeTags.length > 0) {
+    notes = notes.filter(n => state.activeTags.every(t => {
+      if (t === 'angepinnt') return n.pinned;
+      return (n.tags||[]).includes(t);
+    }));
+  }
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    notes = notes.filter(n =>
+      (n.title||'').toLowerCase().includes(q) ||
+      (n.body||'').toLowerCase().includes(q) ||
+      (n.tags||[]).some(t => t.includes(q))
+    );
+  }
+  return notes.sort((a,b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    if (a.position != null && b.position != null) return a.position - b.position;
+    if (a.position != null) return -1;
+    if (b.position != null) return 1;
+    return b.updatedAt - a.updatedAt;
+  });
+}
+
+function highlight(text, query) {
+  if (text==null) text = '';
+  if (!query) return escHtml(text);
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return escHtml(text).replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+function renderGrid() {
+  const grid = document.getElementById('notesGrid');
+  const empty = document.getElementById('emptyState');
+  const notes = getFilteredNotes();
+
+  grid.innerHTML = '';
+  grid.className = 'notes-grid ' + (state.cardSize||'default');
+  if (notes.length===0) { empty.style.display='flex'; return; }
+  empty.style.display='none';
+
+  notes.forEach(n => {
+    const light = isLight(n.color);
+    const textColor = light ? '#1a1410' : '#f0e8df';
+    const rot = (n.rotation || 0);
+    const card = document.createElement('div');
+    const noteSize = n.size || state.cardSize || 'default';
+    card.className = 'note-card' + (n.pinned?' pinned':'') + ' ' + noteSize;
+    card.style.cssText = `background:${n.color};color:${textColor};transform:rotate(${rot}deg);font-family:${n.font};`;
+    card.innerHTML = `
+      <div class="note-card-pin" style="background:radial-gradient(circle at 35% 35%,${light?'#666':'#ccc'},${light?'#333':'#888'});"></div>
+      <div class="note-card-title">${highlight(n.title||'Ohne Titel', state.searchQuery)}</div>
+      <div class="note-card-body">${highlight(n.body||'', state.searchQuery)}</div>
+      ${(n.tags||[]).length?`<div class="note-card-tags">${(n.tags||[]).map(t=>`<span class="note-tag" style="background:rgba(${light?'0,0,0':'255,255,255'},0.18);color:${textColor};">${escHtml(t)}</span>`).join('')}</div>`:''}
+      <div class="note-card-footer">
+        <span style="opacity:0.65;">${fmt(n.updatedAt)}</span>
+      </div>
+    `;
+    card.draggable = true;
+    card.dataset.noteId = n.id;
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', n.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.note-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => { e.preventDefault(); });
+    card.addEventListener('dragenter', () => { card.classList.add('drag-over'); });
+    card.addEventListener('dragleave', () => { card.classList.remove('drag-over'); });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (!draggedId || draggedId===n.id) return;
+      const ids = [...document.querySelectorAll('.note-card:not(.dragging)')].map(c => c.dataset.noteId);
+      const draggedIdx = ids.indexOf(draggedId);
+      const targetIdx = ids.indexOf(n.id);
+      if (draggedIdx<0 || targetIdx<0) return;
+      const currentNotes = getFilteredNotes();
+      const noteMap = {};
+      currentNotes.forEach(note => { noteMap[note.id] = note; });
+      const ordered = currentNotes.filter(n => n.id !== draggedId);
+      ordered.splice(targetIdx, 0, noteMap[draggedId]);
+      ordered.forEach((note, i) => { note.position = i; });
+      save();
+      render();
+    });
+    card.onclick = () => openNote(n.id);
+    grid.appendChild(card);
+  });
+}
+
+function renderAllView() {
+  const section = document.getElementById('allFolderSection');
+  const grid = document.getElementById('notesGrid');
+  const empty = document.getElementById('emptyState');
+
+  if (state.folders.length > 0) {
+    section.style.display = '';
+    let html = '<div class="home-folder-section"><div class="home-section-title">Ordner</div><div class="home-folder-grid">';
+    state.folders.forEach(f => {
+      const count = state.notes.filter(n=>n.folderId===f.id).length;
+      html += `<div class="home-folder-card" data-folder-id="${f.id}" onclick="setView('folder','${f.id}')">
+        <span class="emoji">${f.emoji||'📁'}</span>
+        <div class="name">${escHtml(f.name)}</div>
+        <div class="count">${count} Notiz(en)</div>
+      </div>`;
+    });
+    html += '</div></div>';
+    section.innerHTML = html;
+    section.querySelectorAll('.home-folder-card').forEach(card => {
+      card.addEventListener('dragover', e => { e.preventDefault(); card.style.borderColor = 'var(--accent)'; });
+      card.addEventListener('dragleave', () => { card.style.borderColor = ''; });
+      card.addEventListener('drop', e => {
+        e.preventDefault();
+        card.style.borderColor = '';
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const note = state.notes.find(n=>n.id===draggedId);
+        if (note) {
+          note.folderId = card.dataset.folderId;
+          note.updatedAt = Date.now();
+          save();
+          toast('Notiz in Ordner verschoben');
+          render();
+        }
+      });
+    });
+  } else {
+    section.style.display = 'none';
+  }
+
+  renderGrid();
+}
+
+function render() {
+  renderSidebar();
+  const section = document.getElementById('allFolderSection');
+  if (state.currentView==='timeline') { section.style.display='none'; renderTimelineView(); }
+  else if (state.currentView==='home' || state.currentView==='all') renderAllView();
+  else { section.style.display='none'; renderGrid(); }
+  document.getElementById('viewTitle').textContent = getViewTitle();
+
+  // dock active state
+  document.querySelectorAll('.dock-item[data-view]').forEach(el => {
+    el.classList.toggle('active', state.currentView===el.dataset.view);
+  });
+
+  updateSizeBtns();
+}
+
+function getViewTitle() {
+  if (state.currentView==='home' || state.currentView==='all') return 'Alle Notizen';
+  if (state.currentView==='timeline') return 'Timeline';
+  if (state.currentView==='folder') {
+    const f = state.folders.find(x=>x.id===state.activeFolder);
+    return f ? `${f.emoji||'📁'} ${f.name}` : 'Ordner';
+  }
+  return 'Notizen';
+}
+
+function escHtml(s) {
+  if (s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function setView(view, id) {
+  state.currentView = view;
+  state.activeFolder = view==='folder' ? id : null;
+  state.activeTags = [];
+  state.searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  render();
+}
+
+function toggleTagFilter(tag) {
+  const idx = state.activeTags.indexOf(tag);
+  if (idx>=0) state.activeTags.splice(idx,1);
+  else state.activeTags.push(tag);
+  render();
+}
+
+// ─── NOTE MODAL ──────────────────────────────────────────────────────────────
+function buildColorOptions() {
+  const wrap = document.getElementById('colorOptions');
+  wrap.innerHTML = '';
+  NOTE_COLORS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'color-opt';
+    el.style.background = c;
+    el.onclick = e => { e.stopPropagation(); selectColor(c); };
+    wrap.appendChild(el);
+  });
+}
+
+function selectColor(c) {
+  state.editingColor = c;
+  document.getElementById('colorDot').style.background = c;
+  document.getElementById('colorOptions').classList.remove('open');
+  updateColorOpts();
+}
+
+function updateColorOpts() {
+  document.querySelectorAll('.color-opt').forEach(el => {
+    el.classList.toggle('sel', el.style.background===hexToRgb(state.editingColor)||el.style.background===state.editingColor);
+  });
+}
+
+function hexToRgb(hex) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function toggleColorPicker() {
+  document.getElementById('colorOptions').classList.toggle('open');
+}
+
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.color-picker-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('colorOptions').classList.remove('open');
+});
+
+function openNote(id) {
+  const n = state.notes.find(x=>x.id===id);
+  if (!n) return openNewNote();
+  state.editingNoteId = id;
+  state.editingColor = n.color;
+  state.editingTags = [...(n.tags||[])];
+
+  document.getElementById('noteTitle').value = n.title||'';
+  document.getElementById('noteBody').value = n.body||'';
+  document.getElementById('colorDot').style.background = n.color;
+  document.getElementById('folderSelect').value = n.folderId||'';
+  renderTagBadges();
+  renderNoteEditorTags();
+  updatePinBtn();
+  updateNoteSizeBtns();
+
+  const folder = state.folders.find(f=>f.id===n.folderId);
+  document.getElementById('noteMeta').textContent = `Zuletzt bearbeitet: ${fmtFull(n.updatedAt)}`;
+
+  document.getElementById('noteOverlay').classList.add('open');
+  document.body.classList.add('note-modal-open');
+  document.getElementById('noteTitle').focus();
+  updateColorOpts();
+}
+
+function openNewNote() {
+  state.editingNoteId = null;
+  state.editingColor = randColor();
+  state.editingTags = [];
+
+  document.getElementById('noteTitle').value = '';
+  document.getElementById('noteBody').value = '';
+  document.getElementById('colorDot').style.background = state.editingColor;
+  document.getElementById('folderSelect').value = state.activeFolder||'';
+  document.getElementById('noteMeta').textContent = '';
+  renderTagBadges();
+  renderNoteEditorTags();
+  updatePinBtn();
+
+  document.getElementById('noteOverlay').classList.add('open');
+  document.body.classList.add('note-modal-open');
+  document.getElementById('noteTitle').focus();
+  updateColorOpts();
+}
+
+function closeNoteModal() {
+  saveCurrentNote();
+  document.getElementById('noteOverlay').classList.remove('open');
+  document.body.classList.remove('note-modal-open');
+  state.editingNoteId = null;
+  render();
+}
+
+function saveCurrentNote() {
+  const title = document.getElementById('noteTitle').value.trim();
+  const body = document.getElementById('noteBody').value;
+  const folderId = document.getElementById('folderSelect').value;
+  if (!title && !body) return;
+
+  const bodyTags = extractHashtags(body);
+  const allTg = [...new Set([...state.editingTags, ...bodyTags])];
+
+  if (state.editingNoteId) {
+    const n = state.notes.find(x=>x.id===state.editingNoteId);
+    if (n) {
+      const changed = n.body!==body || n.title!==title;
+      if (changed) {
+        n.history = n.history||[];
+        n.history.push({ts:Date.now(), title:n.title, body:n.body});
+      }
+      n.title = title; n.body = body; n.color = state.editingColor;
+      n.tags = allTg; n.folderId = folderId||null;
+      n.updatedAt = Date.now();
+    }
+  } else {
+    const n = {
+      id: uid(), title, body, color: state.editingColor,
+      font: randFont(), rotation: (Math.random()-0.5)*3.5,
+      tags: allTg, folderId: folderId||null,
+      createdAt: Date.now(), updatedAt: Date.now(),
+      history: [],
+      pinned: false, pinnedAt: null,
+      position: null,
+    };
+    state.notes.unshift(n);
+    state.editingNoteId = n.id;
+  }
+  save();
+}
+
+function deleteNote() {
+  if (!state.editingNoteId) { closeNoteModal(); return; }
+  showConfirm('Notiz löschen?', 'Diese Notiz wird endgültig gelöscht.', () => {
+    const n = state.notes.find(x=>x.id===state.editingNoteId);
+    if (n) {
+      state.notes = state.notes.filter(x=>x.id!==state.editingNoteId);
+      save();
+      toast('Notiz gelöscht');
+    }
+    document.getElementById('noteOverlay').classList.remove('open');
+    state.editingNoteId = null;
+    render();
+  });
+}
+
+// ─── TAGS ────────────────────────────────────────────────────────────────────
+function renderTagBadges() {
+  const wrap = document.getElementById('tagBadges');
+  wrap.innerHTML = '';
+  state.editingTags.forEach(t => {
+    const el = document.createElement('span');
+    el.className = 'tag-badge';
+    el.innerHTML = `${escHtml(t)} <span class="rm" data-tag="${escHtml(t)}">✕</span>`;
+    el.querySelector('.rm').onclick = e => {
+      state.editingTags = state.editingTags.filter(x=>x!==t);
+      renderTagBadges();
+    };
+    wrap.appendChild(el);
+  });
+}
+
+function renderNoteEditorTags() {
+  const wrap = document.getElementById('noteEditorTags');
+  wrap.innerHTML = '';
+  allTags().forEach(t => {
+    const el = document.createElement('span');
+    el.className = 'note-editor-tag-chip' + (state.editingTags.includes(t) ? ' active' : '');
+    el.textContent = t;
+    el.onclick = () => {
+      const idx = state.editingTags.indexOf(t);
+      if (idx >= 0) state.editingTags.splice(idx, 1);
+      else state.editingTags.push(t);
+      renderTagBadges();
+      renderNoteEditorTags();
+    };
+    wrap.appendChild(el);
+  });
+}
+
+document.getElementById('tagInput').addEventListener('keydown', e => {
+  if (e.key==='Enter' || e.key===' ') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/^#/,'');
+    if (val && !state.editingTags.includes('#'+val)) {
+      state.editingTags.push('#'+val);
+      renderTagBadges();
+      renderNoteEditorTags();
+    }
+    e.target.value='';
+  }
+});
+
+// Tag extraction from body: when pressing Enter/Space after #tag, extract it
+let _suggestionIdx = -1;
+document.getElementById('noteBody').addEventListener('keydown', e => {
+  const sug = document.getElementById('tagSuggestions');
+  if (sug.classList.contains('show')) {
+    const items = sug.querySelectorAll('.tag-suggestion');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _suggestionIdx = Math.min(_suggestionIdx + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('highlighted', i === _suggestionIdx));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _suggestionIdx = Math.max(_suggestionIdx - 1, 0);
+      items.forEach((el, i) => el.classList.toggle('highlighted', i === _suggestionIdx));
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      const highlighted = sug.querySelector('.highlighted');
+      if (highlighted) {
+        e.preventDefault();
+        applySuggestion(highlighted.dataset.tag);
+        return;
+      }
+    }
+    if (e.key === 'Escape') {
+      sug.classList.remove('show');
+      sug.innerHTML = '';
+      _suggestionIdx = -1;
+      return;
+    }
+  }
+  if (e.key === ' ' || e.key === 'Enter') {
+    sug.classList.remove('show');
+    sug.innerHTML = '';
+    _suggestionIdx = -1;
+    const ta = e.target;
+    const val = ta.value;
+    const cursor = ta.selectionStart;
+    const before = val.substring(0, cursor);
+    const match = before.match(/#([\w\u00c0-\u024f]+)$/);
+    if (match) {
+      e.preventDefault();
+      const tag = '#' + match[1].toLowerCase();
+      const tagStart = cursor - match[0].length;
+      const after = val.substring(cursor);
+      ta.value = val.substring(0, tagStart) + after;
+      ta.selectionStart = ta.selectionEnd = tagStart;
+      if (!state.editingTags.includes(tag)) {
+        state.editingTags.push(tag);
+        renderTagBadges();
+        renderNoteEditorTags();
+      }
+    }
+  }
+});
+
+document.getElementById('noteBody').addEventListener('input', function() {
+  if (state.editingNoteId) {
+    clearTimeout(window._autoSave);
+    window._autoSave = setTimeout(saveCurrentNote, 800);
+  }
+  showTagSuggestions(this);
+});
+
+function showTagSuggestions(ta) {
+  const sug = document.getElementById('tagSuggestions');
+  const cursor = ta.selectionStart;
+  const val = ta.value.substring(0, cursor);
+  const match = val.match(/#([\w\u00c0-\u024f]*)$/);
+  if (match && match[1].length > 0) {
+    const query = match[1].toLowerCase();
+    const all = [...new Set(allTags().filter(t => t !== 'angepinnt'))];
+    const filtered = all.filter(t => t.startsWith('#' + query));
+    if (filtered.length > 0) {
+      sug.innerHTML = filtered.slice(0, 8).map((t, i) =>
+        `<div class="tag-suggestion${i === 0 ? ' highlighted' : ''}" data-tag="${t}">${highlightMatch(t, query)}</div>`
+      ).join('');
+      sug.classList.add('show');
+      _suggestionIdx = 0;
+      return;
+    }
+  }
+  sug.classList.remove('show');
+  sug.innerHTML = '';
+  _suggestionIdx = -1;
+}
+
+function applySuggestion(tag) {
+  const ta = document.getElementById('noteBody');
+  const cursor = ta.selectionStart;
+  const val = ta.value;
+  const before = val.substring(0, cursor);
+  const match = before.match(/#([\w\u00c0-\u024f]*)$/);
+  if (match) {
+    const tagStart = cursor - match[0].length;
+    const after = val.substring(cursor);
+    ta.value = val.substring(0, tagStart) + after;
+    ta.selectionStart = ta.selectionEnd = tagStart;
+  }
+  if (!state.editingTags.includes(tag)) {
+    state.editingTags.push(tag);
+    renderTagBadges();
+    renderNoteEditorTags();
+  }
+  document.getElementById('tagSuggestions').classList.remove('show');
+  document.getElementById('tagSuggestions').innerHTML = '';
+  _suggestionIdx = -1;
+  ta.focus();
+}
+
+function highlightMatch(tag, query) {
+  const idx = tag.toLowerCase().indexOf(query);
+  if (idx === -1) return tag;
+  return tag.slice(0, idx) + '<span class="match">' + tag.slice(idx, idx + query.length) + '</span>' + tag.slice(idx + query.length);
+}
+
+document.getElementById('noteTitle').addEventListener('input', () => {
+  if (state.editingNoteId) {
+    clearTimeout(window._autoSave);
+    window._autoSave = setTimeout(saveCurrentNote, 800);
+  }
+});
+
+// ─── TIMELINE ────────────────────────────────────────────────────────────────
+function openTimeline() {
+  if (!state.editingNoteId) return;
+  saveCurrentNote();
+  const n = state.notes.find(x=>x.id===state.editingNoteId);
+  if (!n) return;
+  const list = document.getElementById('timelineList');
+  list.innerHTML = '';
+
+  const allEntries = [
+    {ts: n.updatedAt, title: n.title, body: document.getElementById('noteBody').value, label:'(aktuell)'},
+    ...(n.history||[]).slice().reverse().map(h=>({ts:h.ts,title:h.title,body:h.body,label:''})),
+  ];
+
+  allEntries.forEach((e,i) => {
+    const el = document.createElement('div');
+    el.className = 'timeline-item';
+    el.innerHTML = `
+      <div class="timeline-line">
+        <div class="timeline-dot" style="background:${i===0?'var(--accent)':'var(--text-muted)'};"></div>
+        ${i<allEntries.length-1?'<div class="timeline-bar"></div>':''}
+      </div>
+      <div class="timeline-content">
+        <div class="timeline-date">${fmtFull(e.ts)} ${e.label}</div>
+        ${e.title?`<div style="font-family:'Inter',sans-serif;font-size:16px;margin-bottom:4px;">${escHtml(e.title)}</div>`:''}
+        <div class="timeline-text">${escHtml(e.body||'—')}</div>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+
+  document.getElementById('timelineOverlay').classList.add('open');
+}
+
+function closeTimeline() {
+  document.getElementById('timelineOverlay').classList.remove('open');
+}
+
+// ─── TIMELINE VIEW ───────────────────────────────────────────────────────────
+function renderTimelineView() {
+  const grid = document.getElementById('notesGrid');
+  const empty = document.getElementById('emptyState');
+  let notes = [...state.notes].sort((a,b) => b.createdAt - a.createdAt);
+  if (state.activeTags.length > 0) {
+    notes = notes.filter(n => state.activeTags.every(t => {
+      if (t === 'angepinnt') return n.pinned;
+      return (n.tags||[]).includes(t);
+    }));
+  }
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    notes = notes.filter(n =>
+      (n.title||'').toLowerCase().includes(q) ||
+      (n.body||'').toLowerCase().includes(q) ||
+      (n.tags||[]).some(t => t.includes(q))
+    );
+  }
+  grid.innerHTML = '';
+  grid.className = 'timeline-view';
+  if (notes.length===0) { empty.style.display='flex'; return; }
+  empty.style.display='none';
+
+  // Group by date
+  const groups = {};
+  notes.forEach(n => {
+    const d = new Date(n.createdAt);
+    const key = d.toLocaleDateString('de-DE', {year:'numeric',month:'long',day:'numeric'});
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(n);
+  });
+
+  Object.keys(groups).forEach(dateStr => {
+    const header = document.createElement('div');
+    header.className = 'timeline-date-header';
+    header.textContent = dateStr;
+    grid.appendChild(header);
+
+    const dayGrid = document.createElement('div');
+    dayGrid.className = 'notes-grid ' + (state.cardSize||'default');
+
+    groups[dateStr].forEach(n => {
+      const light = isLight(n.color);
+      const textColor = light ? '#1a1410' : '#f0e8df';
+      const rot = (n.rotation || 0);
+      const noteSize = n.size || state.cardSize || 'default';
+      const card = document.createElement('div');
+      card.className = 'note-card' + (n.pinned?' pinned':'') + ' ' + noteSize;
+      card.style.cssText = `background:${n.color};color:${textColor};transform:rotate(${rot}deg);font-family:${n.font};`;
+      card.innerHTML = `
+        <div class="note-card-pin" style="background:radial-gradient(circle at 35% 35%,${light?'#666':'#ccc'},${light?'#333':'#888'});"></div>
+        <div class="note-card-title">${highlight(n.title||'Ohne Titel', state.searchQuery)}</div>
+        <div class="note-card-body">${highlight(n.body||'', state.searchQuery)}</div>
+        ${(n.tags||[]).length?`<div class="note-card-tags">${(n.tags||[]).map(t=>`<span class="note-tag" style="background:rgba(${light?'0,0,0':'255,255,255'},0.18);color:${textColor};">${escHtml(t)}</span>`).join('')}</div>`:''}
+        <div class="note-card-footer">
+          <span style="opacity:0.65;">${fmt(n.updatedAt)}</span>
+        </div>
+      `;
+      card.onclick = () => openNote(n.id);
+      dayGrid.appendChild(card);
+    });
+
+    grid.appendChild(dayGrid);
+  });
+}
+
+// ─── FOLDERS ─────────────────────────────────────────────────────────────────
+let selectedEmoji = '📁';
+
+function buildEmojiRow() {
+  const row = document.getElementById('emojiRow');
+  row.innerHTML = '';
+  EMOJIS.forEach(e => {
+    const el = document.createElement('span');
+    el.className = 'emoji-opt' + (e===selectedEmoji?' sel':'');
+    el.textContent = e;
+    el.onclick = () => {
+      selectedEmoji = e;
+      document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('sel'));
+      el.classList.add('sel');
+    };
+    row.appendChild(el);
+  });
+}
+
+document.getElementById('addFolderBtn').onclick = () => {
+  selectedEmoji='📁';
+  buildEmojiRow();
+  document.getElementById('folderNameInput').value='';
+  document.getElementById('folderOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('folderNameInput').focus(),50);
+};
+
+function closeFolderModal() {
+  document.getElementById('folderOverlay').classList.remove('open');
+}
+
+function createFolder() {
+  const name = document.getElementById('folderNameInput').value.trim();
+  if (!name) return;
+  state.folders.push({id:uid(), name, emoji:selectedEmoji, updatedAt: Date.now()});
+  save(); closeFolderModal(); render();
+  toast(`Ordner „${name}" erstellt`);
+}
+
+document.getElementById('folderNameInput').addEventListener('keydown', e => {
+  if (e.key==='Enter') createFolder();
+});
+
+// ─── CONFIRM ─────────────────────────────────────────────────────────────────
+let confirmAltCallback = null;
+
+function showConfirm(title, msg, okCb, altCb, okLabel, altLabel) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  state.confirmCallback = okCb;
+  confirmAltCallback = altCb || null;
+  const okBtn = document.getElementById('confirmOkBtn');
+  const altBtn = document.getElementById('confirmAltBtn');
+  okBtn.textContent = okLabel || 'OK';
+  if (altCb && altLabel) {
+    altBtn.style.display = '';
+    altBtn.textContent = altLabel;
+  } else {
+    altBtn.style.display = 'none';
+  }
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); }
+document.getElementById('confirmOkBtn').onclick = () => {
+  closeConfirm();
+  if (state.confirmCallback) state.confirmCallback();
+};
+document.getElementById('confirmAltBtn').onclick = () => {
+  closeConfirm();
+  if (confirmAltCallback) confirmAltCallback();
+};
+
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  state.searchQuery = e.target.value.trim();
+  renderGrid();
+});
+
+// ─── EVENTS ──────────────────────────────────────────────────────────────────
+document.getElementById('newNoteBtn').onclick = openNewNote;
+document.getElementById('noteOverlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('noteOverlay')) closeNoteModal();
+});
+document.getElementById('timelineOverlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('timelineOverlay')) closeTimeline();
+});
+document.getElementById('confirmOverlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('confirmOverlay')) closeConfirm();
+});
+document.getElementById('folderOverlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('folderOverlay')) closeFolderModal();
+});
+document.querySelectorAll('.sidebar-item[data-view]').forEach(el => {
+  el.addEventListener('click', ()=>{ setView(el.dataset.view); });
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+  document.querySelector('.sidebar').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.querySelector('.sidebar').classList.remove('open');
+}
+
+function openMoreMenu() {
+  renderMoreMenu();
+  document.getElementById('moreOverlay').classList.add('open');
+  document.body.classList.add('more-overlay-open');
+}
+function closeMoreMenu() {
+  document.getElementById('moreOverlay').classList.remove('open');
+  document.body.classList.remove('more-overlay-open');
+}
+function renderMoreMenu() {
+  const fl = document.getElementById('moreFolderList');
+  if (!fl) return;
+  fl.innerHTML = '';
+  state.folders.forEach(f => {
+    const count = state.notes.filter(n=>n.folderId===f.id).length;
+    const el = document.createElement('div');
+    el.className = 'more-item';
+    el.innerHTML = `<span style="font-size:16px;opacity:0.7;">${f.emoji||'📁'}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</span><span class="count">${count}</span>`;
+    el.addEventListener('click', () => { setView('folder', f.id); closeMoreMenu(); });
+    fl.appendChild(el);
+  });
+  const addBtn = document.createElement('div');
+  addBtn.className = 'more-item';
+  addBtn.style.cssText = 'color:var(--accent);font-size:13px;';
+  addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Ordner erstellen';
+  addBtn.onclick = () => { closeMoreMenu(); openFolderModal(); };
+  fl.appendChild(addBtn);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') {
+    if (document.getElementById('moreOverlay').classList.contains('open')) { closeMoreMenu(); return; }
+    if (document.getElementById('settingsOverlay').classList.contains('open')) { closeSettings(); return; }
+    if (document.getElementById('timelineOverlay').classList.contains('open')) { closeTimeline(); return; }
+    if (document.getElementById('confirmOverlay').classList.contains('open')) { closeConfirm(); return; }
+    if (document.getElementById('folderOverlay').classList.contains('open')) { closeFolderModal(); return; }
+    if (document.getElementById('noteOverlay').classList.contains('open')) { closeNoteModal(); return; }
+  }
+  if ((e.metaKey||e.ctrlKey)&&e.key==='n') { e.preventDefault(); openNewNote(); }
+});
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(()=>el.remove(), 2500);
+}
+
+// ─── NOTE SIZE ───────────────────────────────────────────────────────────────
+function setNoteSize(size) {
+  if (!state.editingNoteId) return;
+  const n = state.notes.find(x=>x.id===state.editingNoteId);
+  if (!n) return;
+  n.size = size;
+  document.querySelectorAll('.note-size-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.noteSize===size);
+  });
+  save();
+}
+
+function updateNoteSizeBtns() {
+  if (!state.editingNoteId) return;
+  const n = state.notes.find(x=>x.id===state.editingNoteId);
+  if (!n) return;
+  document.querySelectorAll('.note-size-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.noteSize===(n.size||'default'));
+  });
+}
+
+// ─── PIN ─────────────────────────────────────────────────────────────────────
+function togglePin() {
+  if (!state.editingNoteId) return;
+  const n = state.notes.find(x=>x.id===state.editingNoteId);
+  if (!n) return;
+  n.pinned = !n.pinned;
+  n.pinnedAt = n.pinned ? Date.now() : null;
+  updatePinBtn();
+  save();
+  toast(n.pinned?'Notiz angepinnt':'Notiz gelöst');
+}
+
+function updatePinBtn() {
+  const btn = document.getElementById('pinBtn');
+  if (!state.editingNoteId) { btn.classList.remove('active'); return; }
+  const n = state.notes.find(x=>x.id===state.editingNoteId);
+  btn.classList.toggle('active', n && n.pinned);
+}
+
+// ─── FOLDER DELETE ────────────────────────────────────────────────────────────
+function deleteFolder(id) {
+  const f = state.folders.find(x=>x.id===id);
+  if (!f) return;
+  showConfirm(`Ordner „${f.name}" löschen?`, 'Notizen in diesem Ordner werden nicht gelöscht.', () => {
+    state.notes.forEach(n => { if (n.folderId===id) n.folderId = null; });
+    state.folders = state.folders.filter(x=>x.id!==id);
+    save();
+    if (state.currentView==='folder' && state.activeFolder===id) setView('home');
+    else render();
+    toast(`Ordner „${f.name}" gelöscht`);
+  });
+}
+
+// ─── CARD SIZE ────────────────────────────────────────────────────────────────
+document.getElementById('sizeToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.size-btn');
+  if (!btn) return;
+  state.cardSize = btn.dataset.size;
+  save();
+  render();
+});
+
+function updateSizeBtns() {
+  document.querySelectorAll('.size-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.size===state.cardSize);
+  });
+}
+
+// ─── HOME VIEW ────────────────────────────────────────────────────────────────
+function renderHomeView() {
+  const grid = document.getElementById('notesGrid');
+  const empty = document.getElementById('emptyState');
+  grid.innerHTML = '';
+  grid.className = 'home-view';
+  empty.style.display='none';
+
+  let html = '';
+  const allNotes = state.notes;
+  if (allNotes.length > 0) {
+    const recent = [...allNotes].sort((a,b)=>b.updatedAt - a.updatedAt);
+    const picks = [];
+    const used = new Set();
+    for (let i = 0; i < recent.length && picks.length < 2; i++) {
+      if (!used.has(recent[i].id)) { picks.push(recent[i]); used.add(recent[i].id); }
+    }
+    const remaining = allNotes.filter(n=>!used.has(n.id));
+    if (remaining.length > 0) {
+      picks.push(remaining[Math.floor(Math.random() * remaining.length)]);
+    }
+    if (picks.length > 0) {
+      html += `<div class="home-folder-section">
+        <div class="home-section-title">Vorschläge</div>
+        <div class="home-suggestion-grid">`;
+      picks.forEach(n => {
+        const light = isLight(n.color);
+        const textColor = light ? '#1a1410' : '#f0e8df';
+        html += `<div class="home-folder-card suggestion-card" data-note-id="${n.id}" onclick="openNote('${n.id}')" style="background:${n.color};color:${textColor};">
+          <div style="font-size:17px;font-weight:700;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.pinned?'📌 ':''}${escHtml(n.title||'Ohne Titel')}</div>
+          <div style="font-size:12px;opacity:0.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${escHtml(n.body||'')}</div>
+          <div class="count" style="margin-top:6px;">${fmt(n.updatedAt)}</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+  }
+
+  if (state.folders.length > 0) {
+    html += `<div class="home-folder-section">
+      <div class="home-section-title">Ordner</div>
+      <div class="home-folder-grid" id="homeFolderGrid">`;
+    state.folders.forEach(f => {
+      const count = state.notes.filter(n=>n.folderId===f.id).length;
+      html += `<div class="home-folder-card" draggable="true" data-folder-id="${f.id}" onclick="setView('folder','${f.id}')">
+        <span class="emoji">${f.emoji||'📁'}</span>
+        <div class="name">${escHtml(f.name)}</div>
+        <div class="count">${count} Notiz(en)</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  const recent = [...state.notes].sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,12);
+  if (recent.length > 0) {
+    html += `<div class="home-folder-section">
+      <div class="home-section-title">Letzte Notizen</div>
+      <div class="home-folder-grid">`;
+    recent.forEach(n => {
+      const light = isLight(n.color);
+      const textColor = light ? '#1a1410' : '#f0e8df';
+      html += `<div class="home-folder-card" data-note-id="${n.id}" onclick="openNote('${n.id}')" style="background:${n.color};color:${textColor};">
+        <div style="font-size:16px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.pinned?'📌 ':''}${escHtml(n.title||'Ohne Titel')}</div>
+        <div style="font-size:12px;opacity:0.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.body||'')}</div>
+        <div class="count" style="margin-top:4px;">${fmt(n.updatedAt)}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if (!html) {
+    empty.style.display='flex';
+    return;
+  }
+  grid.innerHTML = html;
+
+  const folderCards = document.querySelectorAll('#homeFolderGrid .home-folder-card');
+  let dragSrc = null;
+  folderCards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragSrc = card;
+      card.style.opacity = '0.4';
+    });
+    card.addEventListener('dragend', e => {
+      card.style.opacity = '1';
+    });
+    card.addEventListener('dragover', e => { e.preventDefault(); });
+    card.addEventListener('dragenter', e => {
+      if (dragSrc && dragSrc!==card) card.style.borderColor = 'var(--accent)';
+    });
+    card.addEventListener('dragleave', e => {
+      card.style.borderColor = '';
+    });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.style.borderColor = '';
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (draggedId && state.notes.find(n=>n.id===draggedId)) {
+        const note = state.notes.find(n=>n.id===draggedId);
+        note.folderId = card.dataset.folderId;
+        note.updatedAt = Date.now();
+        save();
+        toast('Notiz in Ordner verschoben');
+        render();
+      } else if (dragSrc && dragSrc!==card) {
+        const fromId = dragSrc.dataset.folderId;
+        const toId = card.dataset.folderId;
+        if (fromId && toId) {
+          const fromIdx = state.folders.findIndex(f=>f.id===fromId);
+          const toIdx = state.folders.findIndex(f=>f.id===toId);
+          if (fromIdx>=0 && toIdx>=0) {
+            const [moved] = state.folders.splice(fromIdx, 1);
+            state.folders.splice(toIdx, 0, moved);
+            save();
+            render();
+          }
+        }
+      }
+    });
+  });
+
+  const recentCards = document.querySelectorAll('.home-folder-section:last-child .home-folder-card');
+  recentCards.forEach(card => {
+    const noteId = card.dataset.noteId;
+    if (!noteId) return;
+    card.draggable = true;
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', noteId);
+      card.style.opacity = '0.4';
+    });
+    card.addEventListener('dragend', () => {
+      card.style.opacity = '1';
+      document.querySelectorAll('.recent-drag-over').forEach(c => c.classList.remove('recent-drag-over'));
+    });
+    card.addEventListener('dragover', e => { e.preventDefault(); });
+    card.addEventListener('dragenter', () => { card.classList.add('recent-drag-over'); });
+    card.addEventListener('dragleave', () => { card.classList.remove('recent-drag-over'); });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('recent-drag-over');
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (!draggedId || draggedId===noteId) return;
+      const allCards = [...document.querySelectorAll('.home-folder-section:last-child .home-folder-card')];
+      const ids = allCards.map(c => c.dataset.noteId);
+      const fromIdx = ids.indexOf(draggedId);
+      const toIdx = ids.indexOf(noteId);
+      if (fromIdx<0 || toIdx<0) return;
+      const currentNotes = state.notes;
+      const noteMap = {}; currentNotes.forEach(n=>{noteMap[n.id]=n;});
+      const ordered = currentNotes.filter(n => n.id !== draggedId);
+      ordered.splice(toIdx, 0, noteMap[draggedId]);
+      ordered.forEach((note, i) => { note.position = i; });
+      save();
+      render();
+    });
+  });
+}
+
+// ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
+function exportData() {
+  const data = {
+    notes: state.notes,
+    folders: state.folders,
+    theme: state.theme,
+    accent: state.accent,
+    cardSize: state.cardSize,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `notizzettel_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Daten exportiert');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.notes || !Array.isArray(data.notes)) throw new Error('Ungültige Datei');
+      const count = data.notes.length;
+      state.notes = data.notes;
+      state.folders = data.folders || [];
+      if (data.theme) state.theme = data.theme;
+      if (data.accent) state.accent = data.accent;
+      if (data.cardSize) state.cardSize = data.cardSize;
+      save();
+      applyTheme();
+      render();
+      toast(`${count} Notiz(en) importiert`);
+    } catch(err) {
+      toast('Fehler: Ungültige Datei');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearLocalStorage() {
+  showConfirm('LocalStorage leeren?', 'Alle lokalen Daten werden gelöscht.', () => {
+    localStorage.removeItem('notizzettel_v3');
+    state.notes = []; state.folders = [];
+    state.theme = 'dark'; state.accent = '#e8935a'; state.cardSize = 'default';
+    state.offlineMode = false;
+    document.getElementById('offlineToggle').classList.remove('active');
+    render();
+    toast('LocalStorage geleert');
+  });
+}
+
+// ─── THEME / SETTINGS ────────────────────────────────────────────────────────
+function resolveTheme() {
+  if (state.theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return state.theme;
+}
+
+function applyTheme() {
+  const resolved = resolveTheme();
+  document.documentElement.setAttribute('data-theme', resolved);
+  document.documentElement.style.setProperty('--accent', state.accent);
+  document.documentElement.style.setProperty('--accent2', state.accent);
+  document.querySelectorAll('.sidebar-item.active').forEach(el => {
+    el.style.borderLeftColor = state.accent;
+  });
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (state.theme === 'system') applyTheme();
+});
+
+function renderThemeGrid() {
+  const grid = document.getElementById('themeGrid');
+  grid.innerHTML = '';
+  THEMES.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'theme-card' + (state.theme===t.id?' active':'');
+    el.innerHTML = `
+      <div class="preview">
+        <span style="background:${t.bg}"></span>
+        <span style="background:${t.surface}"></span>
+        <span style="background:${t.bg}"></span>
+      </div>
+      ${t.label}
+    `;
+    el.onclick = () => {
+      state.theme = t.id;
+      applyTheme();
+      renderThemeGrid();
+      save();
+      render();
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderAccentGrid() {
+  const grid = document.getElementById('accentGrid');
+  grid.innerHTML = '';
+  ACCENT_COLORS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'accent-swatch' + (state.accent===c?' active':'');
+    el.style.background = c;
+    el.onclick = () => {
+      state.accent = c;
+      applyTheme();
+      renderAccentGrid();
+      save();
+      render();
+    };
+    grid.appendChild(el);
+  });
+}
+
+function openSettings() {
+  renderThemeGrid();
+  renderAccentGrid();
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+function resetAccent() {
+  state.accent = '#e8935a';
+  applyTheme();
+  renderAccentGrid();
+  save();
+  render();
+  toast('Akzentfarbe zurückgesetzt');
+}
+
+document.getElementById('settingsOverlay').addEventListener('click', e => {
+  if (e.target===document.getElementById('settingsOverlay')) closeSettings();
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+(async function init() {
+  buildColorOptions();
+  load();
+  applyTheme();
+  if (state.offlineMode) {
+    document.getElementById('offlineToggle').classList.add('active');
+    document.getElementById('syncBtn').style.display = 'none';
+  }
+  render();
+  if (!state.offlineMode) {
+    try { await syncFromFirestore(); render(); } catch(e) {}
+  }
+  if ('serviceWorker' in navigator) {
+    try { await navigator.serviceWorker.register('/sw.js'); } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>
