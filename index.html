@@ -30,8 +30,8 @@
     --safe-bottom: env(safe-area-inset-bottom, 34px);
 
     /* Dock config */
-    --dock-height: 68px;
-    --dock-bottom-gap: 28px;
+    --dock-height: 48px;
+    --dock-bottom-gap: 10px;
   }
 
   /* ── Dark (iOS dark) ──────────────────────────────────────── */
@@ -332,7 +332,7 @@
 
   .content {
     flex: 1; overflow-y: auto; padding: 8px 16px 12px;
-    padding-bottom: calc(var(--dock-height) + var(--dock-bottom-gap) + 12px);
+    padding-bottom: calc(var(--dock-height) + var(--dock-bottom-gap) + 16px);
   }
   .content::-webkit-scrollbar { display: none; }
 
@@ -746,83 +746,98 @@
   .sync-btn { padding: 6px 8px !important; }
   .sync-btn svg { display: block; }
 
-  /* ── iOS LIQUID GLASS DOCK ────────────────────────────────── */
+  /* ── iOS NATIVE LIQUID GLASS DOCK ──────────────────────────── */
   .dock-container {
     position: fixed;
-    bottom: var(--dock-bottom-gap);
+    bottom: 0;
     left: 0; right: 0;
     display: flex; justify-content: center;
-    padding: 0 24px;
-    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    padding: 0 16px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
     z-index: 9999; pointer-events: none;
   }
 
-  /* Liquid Glass pill */
   .dock {
     pointer-events: auto;
-    display: flex; align-items: center; gap: 4px;
-    padding: 6px 12px;
+    display: flex; align-items: center; justify-content: space-evenly;
+    width: 100%; max-width: 280px;
     height: var(--dock-height);
-    border-radius: 30px;
+    padding: 0 4px;
 
-    /* Liquid Glass layering */
-    background: var(--glass-bg);
-    backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
-    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.1);
+    /* Liquid Glass – maximale Transparenz + starker Blur */
+    background: rgba(245,245,247,0.25);
+    backdrop-filter: blur(50px) saturate(160%);
+    -webkit-backdrop-filter: blur(50px) saturate(160%);
 
-    /* Specular highlights for glass effect */
-    border: 0.5px solid var(--glass-border);
+    /* Squircle-Rundung + Lichtkante */
+    border-radius: calc(var(--dock-height) / 2);
+    border: 0.5px solid rgba(255,255,255,0.3);
     box-shadow:
-      0 0 0 0.5px var(--glass-specular) inset,
-      0 1px 0 var(--glass-specular) inset,
-      0 8px 32px rgba(0,0,0,0.25),
-      0 2px 8px rgba(0,0,0,0.15);
+      0 0 0 0.5px rgba(255,255,255,0.15) inset,
+      0 0 0 0.5px rgba(255,255,255,0.08) inset,
+      0 8px 32px rgba(0,0,0,0.1);
 
     position: relative; overflow: hidden;
   }
 
-  /* Glass sheen overlay */
+  @media (prefers-color-scheme: dark) {
+    .dock {
+      background: rgba(25,25,30,0.2);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      box-shadow: 0 0 0 0.5px rgba(255,255,255,0.05) inset, 0 8px 40px rgba(0,0,0,0.5);
+    }
+  }
+
+  /* Specular sheen overlay */
   .dock::before {
     content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 50%;
-    background: linear-gradient(to bottom, var(--glass-specular), transparent);
-    border-radius: 30px 30px 0 0;
+    position: absolute; top: 0; left: 4px; right: 4px;
+    height: 48%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.18), transparent);
+    border-radius: calc(var(--dock-height) / 2 - 2px) calc(var(--dock-height) / 2 - 2px) 0 0;
     pointer-events: none;
   }
 
   .dock-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 1px; width: 48px; height: 52px;
+    gap: 1px;
+    width: 44px; height: 46px;
     background: transparent; border: none;
     cursor: pointer; padding: 0;
-    transition: transform 0.2s cubic-bezier(0.25,1,0.5,1);
-    border-radius: 18px;
+    transition: transform 0.2s cubic-bezier(0.25,0.1,0.25,1);
+    border-radius: 14px;
     position: relative; z-index: 1;
   }
   .dock-item:active { transform: scale(0.88); }
 
   .dock-icon-wrap {
-    width: 36px; height: 36px; border-radius: 10px;
+    width: 28px; height: 28px; border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s;
   }
   .dock-item.active .dock-icon-wrap {
     background: color-mix(in srgb, var(--accent) 15%, transparent);
+    backdrop-filter: blur(4px);
   }
 
   .dock-icon {
-    width: 22px; height: 22px; fill: none;
+    width: 20px; height: 20px; fill: none;
     stroke: var(--icon-inactive); stroke-width: 1.8;
     stroke-linecap: round; stroke-linejoin: round;
     transition: stroke 0.2s;
   }
   .dock-item.active .dock-icon { stroke: var(--accent); }
+
   .dock-label {
-    font-size: 10px; color: var(--text-muted);
-    letter-spacing: 0.2px; line-height: 1;
-    font-family: var(--sf); font-weight: 500;
-    transition: color 0.2s;
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+    line-height: 1;
+    text-align: center;
+    max-width: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .dock-item.active .dock-label { color: var(--accent); }
 
@@ -906,6 +921,7 @@
     .topbar-actions .size-toggle { display: none; }
     .topbar h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.2px; }
     .topbar-actions .btn { padding: 4px 8px; font-size: 11px; }
+    .search-bar input { min-height: 36px; padding: 10px 14px; font-size: 16px; }
     .greeting { display: block; padding: 4px 14px 6px; }
     .greeting-label { font-size: 13px; margin-bottom: 1px; }
     .greeting-name { font-size: 26px; }
@@ -919,7 +935,7 @@
     .home-folder-card:hover { transform: none !important; }
     .home-folder-card { padding: 14px 10px; border-radius: 12px; min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .home-folder-card:active { transform: scale(0.96); background: var(--surface2); }
-    .dock-container { display: flex; bottom: calc(var(--dock-bottom-gap) - 4px); }
+    .dock-container { display: flex; }
     .note-card-title { font-size: 16px; }
     .note-card-body { font-size: 12px; -webkit-line-clamp: 4; }
     .note-card-footer { font-size: 10px; }
@@ -930,8 +946,8 @@
     .home-folder-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
     .home-suggestion-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
     .home-folder-card .emoji { font-size: 24px; }
-    .tag-filter-bar { padding: 4px 10px; background: transparent; border-bottom-color: transparent; }
-    .tag-chip { padding: 4px 10px; font-size: 12px; min-height: 28px; }
+    .tag-filter-bar { padding: 4px 10px; background: transparent; border-bottom-color: transparent; gap: 4px; flex-wrap: wrap; max-height: 110px; overflow-y: auto; overflow-x: visible; -webkit-overflow-scrolling: touch; }
+    .tag-chip { padding: 3px 9px; font-size: 11px; min-height: 26px; }
     .note-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
     .note-modal-header { padding: 10px 12px; min-height: 48px; }
     .note-modal { display: flex; flex-direction: column; height: 100dvh; }
@@ -941,12 +957,12 @@
     }
     .note-modal-textarea {
       flex: 1; min-height: 0; resize: none; overflow-y: auto;
-      padding: 14px 16px; font-size: 16px; border: none;
+      padding: 20px 20px; font-size: 17px; border: none; line-height: 1.7;
     }
     .tag-input-wrap {
       margin-top: auto; flex-shrink: 0;
       border-top: 0.5px solid var(--separator);
-      border-radius: 0; padding: 6px 12px; gap: 6px;
+      border-radius: 0; padding: 8px 14px; gap: 6px;
       background: var(--surface1);
       overflow-x: auto; flex-wrap: nowrap; white-space: nowrap;
       -webkit-overflow-scrolling: touch;
@@ -974,9 +990,9 @@
     .note-modal-footer .note-meta { font-size: 10px; }
     .note-modal-footer > div:last-child { display: none; }
     .note-modal-footer .btn[title="Verlauf"] { display: none; }
-    .note-modal-header { padding: 8px 10px; min-height: 44px; gap: 6px; }
+    .note-modal-header { padding: 8px 12px; min-height: 44px; gap: 6px; }
     .note-modal-header .note-modal-close { width: 28px; height: 28px; }
-    .note-modal-title { font-size: 18px; }
+    .note-modal-title { font-size: 20px; letter-spacing: -0.3px; }
     .color-dot { width: 26px; height: 26px; }
     .color-options { width: 200px; padding: 14px; gap: 10px; }
     .color-opt { width: 36px; height: 36px; }
@@ -1241,6 +1257,13 @@
         <button class="accent-reset" onclick="resetAccent()">Auf Standard zurücksetzen</button>
       </div>
       <div class="settings-section">
+        <div class="settings-label">Dock-Größe</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:4px 0;">
+          <input type="range" id="dockHeightSlider" min="36" max="72" value="48" step="2" style="flex:1;accent-color:var(--accent);">
+          <span id="dockHeightLabel" style="font-family:var(--sf);font-size:13px;color:var(--text-secondary);min-width:36px;text-align:right;font-variant-numeric:tabular-nums;">48px</span>
+        </div>
+      </div>
+      <div class="settings-section">
         <div class="settings-label">Daten</div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" onclick="exportData()" style="flex:1;">
@@ -1372,6 +1395,7 @@ let state = {
   confirmCallback: null, selectedEmoji: '📁',
   theme: 'dark', accent: '#e8935a',
   cardSize: 'default',
+  dockHeight: 48,
   offlineMode: false,
   searchActive: false,
   recentSearches: [],
@@ -1386,6 +1410,7 @@ function load() {
       state.theme = parsed.theme || 'dark';
       state.accent = parsed.accent || '#e8935a';
       state.cardSize = parsed.cardSize || 'default';
+      state.dockHeight = parsed.dockHeight || 48;
       state.offlineMode = parsed.offlineMode || false;
       if (state.offlineMode) {
         state.notes = parsed.notes || [];
@@ -1398,7 +1423,7 @@ function load() {
 function save() {
   const data = {
     theme: state.theme, accent: state.accent,
-    cardSize: state.cardSize, offlineMode: state.offlineMode,
+    cardSize: state.cardSize, dockHeight: state.dockHeight, offlineMode: state.offlineMode,
   };
   if (state.offlineMode) {
     data.notes = state.notes;
@@ -2027,6 +2052,7 @@ function deleteNote() {
       toast('Notiz gelöscht');
     }
     document.getElementById('noteOverlay').classList.remove('open');
+    document.body.classList.remove('note-modal-open');
     state.editingNoteId = null;
     render();
   });
@@ -2959,9 +2985,19 @@ function renderAccentGrid() {
   });
 }
 
+function applyDockHeight() {
+  const h = state.dockHeight;
+  document.documentElement.style.setProperty('--dock-height', h + 'px');
+  const label = document.getElementById('dockHeightLabel');
+  const slider = document.getElementById('dockHeightSlider');
+  if (label) label.textContent = h + 'px';
+  if (slider) slider.value = h;
+}
+
 function openSettings() {
   renderThemeGrid();
   renderAccentGrid();
+  applyDockHeight();
   document.getElementById('settingsOverlay').classList.add('open');
 }
 
@@ -2982,11 +3018,18 @@ document.getElementById('settingsOverlay').addEventListener('click', e => {
   if (e.target===document.getElementById('settingsOverlay')) closeSettings();
 });
 
+document.getElementById('dockHeightSlider').addEventListener('input', e => {
+  state.dockHeight = parseInt(e.target.value);
+  applyDockHeight();
+  save();
+});
+
 // ─── START ────────────────────────────────────────────────────────────────────
 async function startApp() {
   buildColorOptions();
   load();
   applyTheme();
+  applyDockHeight();
 
   const splash = document.getElementById('splashScreen');
 
