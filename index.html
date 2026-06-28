@@ -6,17 +6,21 @@
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" sizes="76x76" href="/icon-76.png">
-<link rel="apple-touch-icon" sizes="120x120" href="/icon-120.png">
-<link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" sizes="76x76" href="icon-76.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icon-120.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="mask-icon" href="icon.svg" color="#e8935a">
 <title>noteitnow</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -1074,15 +1078,30 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
 <body>
 
 <div id="splashScreen">
-  <div class="splash-icon">N</div>
+  <div class="splash-icon"><img src="icon.svg" alt="noteitnow" style="width:72px;height:72px;display:block;"></div>
   <div class="splash-title">noteitnow</div>
   <div class="splash-spinner"></div>
+</div>
+
+<!-- ═══════════ LOGIN OVERLAY ═══════════ -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9998;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;">
+  <div style="text-align:center;">
+    <div style="width:72px;height:72px;border-radius:18px;margin:0 auto 16px;box-shadow:0 8px 32px color-mix(in srgb, var(--accent) 50%, rgba(0,0,0,0.4));overflow:hidden;"><img src="icon.svg" alt="noteitnow" style="width:72px;height:72px;display:block;"></div>
+    <h2 style="font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px;">noteitnow</h2>
+    <p style="font-size:14px;color:var(--text3);margin-bottom:24px;">Melde dich an, um deine Notizen zu nutzen</p>
+  </div>
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px;">
+    <input type="email" id="loginEmail" placeholder="E-Mail" autocomplete="email" style="width:100%;background:var(--surface2);border:none;outline:none;color:var(--text);font-family:var(--sf);font-size:16px;border-radius:12px;padding:14px 16px;">
+    <input type="password" id="loginPassword" placeholder="Passwort" autocomplete="current-password" style="width:100%;background:var(--surface2);border:none;outline:none;color:var(--text);font-family:var(--sf);font-size:16px;border-radius:12px;padding:14px 16px;">
+    <button id="loginBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:#000;font-family:var(--sf);font-size:16px;font-weight:700;cursor:pointer;transition:opacity 0.1s;display:flex;align-items:center;justify-content:center;gap:8px;">Einloggen</button>
+    <div id="loginError" style="font-size:13px;color:var(--danger);text-align:center;display:none;"></div>
+  </div>
 </div>
 
 <!-- ═══════════ SIDEBAR ═══════════ -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <div class="sidebar-logo-mark">N</div>
+    <div class="sidebar-logo-mark"><img src="icon.svg" alt="noteitnow" style="width:32px;height:32px;display:block;"></div>
     <div class="sidebar-logo-text">
       noteitnow
       <span>by Marten</span>
@@ -1150,6 +1169,12 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
         <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
       <span>Einstellungen</span>
+    </div>
+    <div class="nav-item" onclick="logout()" style="cursor:pointer;">
+      <div class="nav-item-icon">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+      <span style="color:var(--danger);">Ausloggen</span>
     </div>
   </div>
 </aside>
@@ -1798,6 +1823,13 @@ function emptyState(icon,title,msg){
 function renderSettingsView(cont){
   cont.innerHTML=`<div style="padding:4px 0 20px;max-width:480px;">
     <div class="settings-group">
+      <div class="settings-group-label">Konto</div>
+      <div style="padding:8px 12px;background:var(--surface2);border-radius:12px;font-size:14px;display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#000;flex-shrink:0;" id="userAvatar">N</div>
+        <span style="flex:1;color:var(--text);" id="userEmail">—</span>
+      </div>
+    </div>
+    <div class="settings-group">
       <div class="settings-group-label">Erscheinungsbild</div>
       <div class="theme-grid" id="themeGrid"></div>
     </div>
@@ -1865,6 +1897,13 @@ function renderSettingsView(cont){
   renderThemeGrid();renderAccentGrid();renderSettingsFolders();
   document.querySelectorAll('#settingsView .size-btn').forEach(b=>b.classList.toggle('active',b.dataset.size===state.cardSize));
   if(state.offlineMode)document.getElementById('offlineToggle').classList.add('active');
+  // set user info
+  if(currentUser){
+    const emailEl=document.getElementById('userEmail');
+    const avatarEl=document.getElementById('userAvatar');
+    if(emailEl)emailEl.textContent=currentUser.email;
+    if(avatarEl)avatarEl.textContent=(currentUser.email||'N')[0].toUpperCase();
+  }
 }
 
 function renderAllView(cont){
@@ -2540,9 +2579,74 @@ function clearLocalStorage(){
 }
 
 /* ═══════════════════════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════════════════════ */
+const auth = firebase.auth();
+let authReady = false;
+let currentUser = null;
+
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  const overlay = document.getElementById('loginOverlay');
+  const splash = document.getElementById('splashScreen');
+
+  if (user) {
+    const emailEl = document.getElementById('userEmail');
+    const avatarEl = document.getElementById('userAvatar');
+    if (emailEl) emailEl.textContent = user.email;
+    if (avatarEl) avatarEl.textContent = (user.email || 'N')[0].toUpperCase();
+    overlay.style.display = 'none';
+    if (!authReady) {
+      authReady = true;
+      startApp();
+    } else {
+      splash.classList.add('hide');
+      setTimeout(() => splash.style.display = 'none', 600);
+    }
+  } else {
+    overlay.style.display = 'flex';
+    splash.classList.add('hide');
+    setTimeout(() => splash.style.display = 'none', 600);
+    document.querySelectorAll('.main, .dock-wrap, .sidebar').forEach(el => el.style.opacity = '0.3');
+  }
+});
+
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.style.display = 'none';
+  if (!email || !password) { errorEl.textContent = 'Bitte E-Mail und Passwort eingeben.'; errorEl.style.display = 'block'; return; }
+  document.getElementById('loginBtn').textContent = '…';
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => { document.getElementById('loginBtn').textContent = 'Einloggen'; })
+    .catch(err => {
+      document.getElementById('loginBtn').textContent = 'Einloggen';
+      errorEl.textContent = err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' ? 'Falsche E-Mail oder Passwort.' : err.message;
+      errorEl.style.display = 'block';
+    });
+});
+
+document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPassword').focus(); });
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+
+function logout() {
+  auth.signOut().then(() => {
+    document.querySelectorAll('.main, .dock-wrap, .sidebar').forEach(el => el.style.opacity = '0.3');
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').style.display = 'none';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
    START
 ═══════════════════════════════════════════════════════════ */
 async function startApp(){
+  document.querySelectorAll('.main, .dock-wrap, .sidebar').forEach(el => el.style.opacity = '1');
   buildColorOptions();
   load();applyTheme();
   initSheetDrag(document.getElementById('folderSheetInner'),closeFolderSheet);
@@ -2566,7 +2670,7 @@ async function startApp(){
   if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('/sw.js');}catch(e){}}
 }
 
-startApp();
+// authReady wird durch onAuthStateChanged gesteuert – startApp wird dort aufgerufen
 </script>
 </body>
 </html>

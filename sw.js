@@ -1,9 +1,17 @@
-const CACHE = 'notizzettel-v1';
+const CACHE = 'notizzettel-v2';
 const URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon.svg',
+  '/favicon.ico',
+  '/icon-32.png',
+  '/icon-76.png',
+  '/icon-120.png',
+  '/icon-152.png',
+  '/icon-180.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', e => {
