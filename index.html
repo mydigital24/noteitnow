@@ -2,7 +2,7 @@
 <html lang="de" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,8 +29,8 @@
   --sf: -apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
   --sidebar-w: 260px;
   --accent: #FF9F0A;
-  --safe-top: env(safe-area-inset-top, 44px);
-  --safe-bottom: env(safe-area-inset-bottom, 34px);
+  --safe-top: 44px;
+  --safe-bottom: 34px;
   --topbar-h: 52px;
   --radius-card: 6px;
   --radius-pill: 100px;
@@ -527,9 +527,9 @@ body{
   bottom:0;
   left:0;right:0;
   padding-top:10px;
-  padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-bottom:16px;
   gap:8px;align-items:center;justify-content:center;z-index:100;
-  background:var(--bg);
+  background:transparent;
 }
 .mobile-nav{
   display:flex;
@@ -1044,7 +1044,7 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
   .btn-new,.size-toggle{display:none;}
   .content{
     padding:8px 12px 12px;
-    padding-bottom:calc(60px + 56px + env(safe-area-inset-bottom, 34px));
+    padding-bottom:calc(60px + 56px);
   }
   .notes-grid{columns:2 140px;gap:8px;}
   .notes-grid.compact{columns:2 120px;gap:6px;}
