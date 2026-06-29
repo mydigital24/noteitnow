@@ -524,11 +524,19 @@ body{
 .dock-wrap{
   display:none;
   position:fixed;
-  bottom:0;left:0;right:0;
-  padding-bottom:max(16px, env(safe-area-inset-bottom));
-  padding-top:10px;
+  bottom:env(safe-area-inset-bottom, 0px);
+  left:0;right:0;
+  padding:10px 0 12px;
   gap:8px;align-items:center;justify-content:center;z-index:100;
-  background:linear-gradient(to top, var(--bg) 60%, transparent);
+  background:var(--bg);
+}
+.dock-wrap::after{
+  content:'';
+  position:fixed;
+  bottom:0;left:0;right:0;
+  height:env(safe-area-inset-bottom, 0px);
+  background:var(--bg);
+  z-index:99;
 }
 .mobile-nav{
   display:flex;
