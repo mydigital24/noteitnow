@@ -4,8 +4,9 @@
   "description": "Notizen-App mit Cloud-Sync",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#1a1410",
-  "theme_color": "#1a1410",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "categories": ["productivity", "utilities"],
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
