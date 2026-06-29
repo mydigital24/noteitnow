@@ -1039,7 +1039,7 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
   .btn-new,.size-toggle{display:none;}
   .content{
     padding:8px 12px 12px;
-    padding-bottom:calc(60px + 48px);
+    padding-bottom:calc(60px + 48px + env(safe-area-inset-bottom, 0px));
   }
   .notes-grid{columns:2 140px;gap:8px;}
   .notes-grid.compact{columns:2 120px;gap:6px;}
@@ -1213,7 +1213,7 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         Neue Notiz
       </button>
-      
+
     </div>
   </header>
 
@@ -1569,7 +1569,7 @@ function allTags(){
   state.notes.forEach(n=>(n.tags||[]).forEach(t=>s.add(t)));
   return[...s].sort();
 }
-function fmt(ts){
+function fmtDate(ts){
   const d=new Date(ts),now=new Date(),diff=(now-d)/1000;
   if(diff<60)return'Gerade eben';
   if(diff<3600)return`vor ${Math.floor(diff/60)} Min.`;
@@ -1739,7 +1739,7 @@ function makeNoteCard(n){
     <div class="note-card-title">${highlight(n.title||'Ohne Titel',state.searchQuery)}</div>
     <div class="note-card-body">${highlight(stripHtml(n.body||''),state.searchQuery)}</div>
     ${(n.tags||[]).length?`<div class="note-card-tags">${(n.tags||[]).map(t=>`<span class="note-tag" style="background:rgba(${light?'0,0,0':'255,255,255'},0.15);color:${textColor};">${escHtml(t)}</span>`).join('')}</div>`:''}
-    <div class="note-card-footer"><span>${fmt(n.updatedAt)}</span></div>
+    <div class="note-card-footer"><span>${fmtDate(n.updatedAt)}</span></div>
   `;
   card.dataset.noteId=n.id;
   // drag
