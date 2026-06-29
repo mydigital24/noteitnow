@@ -523,8 +523,12 @@ body{
 ══════════════════════════════════════════════════════════ */
 .dock-wrap{
   display:none;
-  position:fixed;bottom:max(24px, env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
-  gap:8px;align-items:center;z-index:100;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  padding-bottom:max(16px, env(safe-area-inset-bottom));
+  padding-top:10px;
+  gap:8px;align-items:center;justify-content:center;z-index:100;
+  background:linear-gradient(to top, var(--bg) 60%, transparent);
 }
 .mobile-nav{
   display:flex;
@@ -1039,7 +1043,7 @@ mark{background:color-mix(in srgb, var(--accent) 30%, transparent);color:inherit
   .btn-new,.size-toggle{display:none;}
   .content{
     padding:8px 12px 12px;
-    padding-bottom:calc(60px + 48px + env(safe-area-inset-bottom, 0px));
+    padding-bottom:calc(60px + 56px + env(safe-area-inset-bottom, 34px));
   }
   .notes-grid{columns:2 140px;gap:8px;}
   .notes-grid.compact{columns:2 120px;gap:6px;}
